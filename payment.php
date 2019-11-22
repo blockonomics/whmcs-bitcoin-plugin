@@ -171,6 +171,7 @@ if ($uuid) {
 		if ($btc_address) {
 			$ca->assign('btc_address', $btc_address);
 		}
+    
 	}
 
 	# Define the template filename to be used without the .tpl extension
