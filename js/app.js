@@ -68,7 +68,7 @@ function getParameterByNameBlocko(name, url) {
 }
 
 //CheckoutController
-app.controller('CheckoutController', function($scope, $interval, Order, $httpParamSerializer, $timeout, AltcoinNew, AltcoinAccept, AltcoinLimits, InternalApi) {
+app.controller('CheckoutController', function($scope, $interval, $timeout, Order, $httpParamSerializer, $timeout, AltcoinNew, AltcoinAccept, AltcoinLimits, InternalApi) {
     //get order id from url
     var btcAddressDiv = document.getElementById("btc-address");
 	$scope.address = btcAddressDiv.dataset.address;
@@ -226,7 +226,7 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
                 var ws = new ReconnectingWebSocket("wss://www.blockonomics.co/payment/" + $scope.order.address + "?timestamp=" + $scope.order.timestamp);
                 ws.onmessage = function(evt) {
                     ws.close();
-                    $interval(function() {
+                    $timeout(function() {
                         //Redirect to order received page if message from socket
                         window.location = $scope.finish_order_url();
                     //Wait for 2 seconds for order status to update on server
