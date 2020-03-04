@@ -239,17 +239,23 @@ class Blockonomics {
 	 */
 	public function getBitcoinAmount($fiat_amount, $currency) {
 		try {
-			$ch = curl_init();
+			if($currency == 'mBTC'){
+				$price = 1000;
+			}elseif($currency == 'BTC'){
+				$price = 1;
+			}else{
+				$ch = curl_init();
 
-			curl_setopt($ch, CURLOPT_URL, "https://www.blockonomics.co/api/price?currency=".$currency);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+				curl_setopt($ch, CURLOPT_URL, "https://www.blockonomics.co/api/price?currency=".$currency);
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-			$contents = curl_exec($ch);
-			if (curl_errno($ch)) {
-					echo 'Error:' . curl_error($ch);
+				$contents = curl_exec($ch);
+				if (curl_errno($ch)) {
+						echo 'Error:' . curl_error($ch);
+				}
+				curl_close ($ch);
+				$price = json_decode($contents)->price;
 			}
-			curl_close ($ch);
-			$price = json_decode($contents)->price;
 			$margin = floatval($this->getMargin());
 			if($margin > 0){
 				$price = $price * 100/(100+$margin);
