@@ -612,70 +612,80 @@ class Blockonomics {
 	 * Run the test setup
 	 */
 	public function testSetup($new_api)	{
-
-		$xpub_fetch_url = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
-		$set_callback_url = 'https://www.blockonomics.co/api/update_callback';
-		$error_str = '';
-
-		$response = $this->doCurlCall($xpub_fetch_url);
-
-		$callback_url = $this->getCallbackUrl();
 		$api_key = $this->getApiKey();
-		if ($api_key != $new_api) {
-			$error_str = 'New API Key: Save your changes and then click \'Test Setup\'';//API key changed
-		}
-		elseif (!isset($response->response_code)) {
-			$error_str = 'Your server is blocking outgoing HTTPS calls';
-		}
-		elseif ($response->response_code==401)
-			$error_str = 'API Key is incorrect';
-		elseif ($response->response_code!=200)
-			$error_str = $response->data;
-		elseif (!isset($response->data) || count($response->data) == 0)
-		{
-			$error_str = 'You have not entered an xpub';
-		}
-		elseif (count($response->data) == 1)
-		{
-			if(!$response->data[0]->callback || $response->data[0]->callback == null)
-			{
-				//No callback URL set, set one 
-				$post_content = '{"callback": "'.$callback_url.'", "xpub": "'.$response->data[0]->address.'"}';
-				$this->doCurlCall($set_callback_url, $post_content);  
+		$callback_url = $this->getCallbackUrl();
+		//Check Active Currencies 
+		$active_currencies = $this->getActiveCurrencies();
+		foreach ($active_currencies as $code => $currency) {
+			if($code =='btc'){
+				$subdomain = 'www';
+			}else{
+				$subdomain = $code;
 			}
-			elseif($response->data[0]->callback != $callback_url)
+			$xpub_fetch_url = 'https://'.$subdomain.'.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+			$set_callback_url = 'https://'.$subdomain.'.blockonomics.co/api/update_callback';
+			$error_str = '';
+
+			$response = $this->doCurlCall($xpub_fetch_url);
+
+			if ($api_key != $new_api) {
+				$error_str = 'New API Key: Save your changes and then click \'Test Setup\'';//API key changed
+			}
+			elseif (!isset($response->response_code)) {
+				$error_str = 'Your server is blocking outgoing HTTPS calls';
+			}
+			elseif ($response->response_code==401)
+				$error_str = 'API Key is incorrect';
+			elseif ($response->response_code!=200)
+				$error_str = $response->data;
+			elseif (!isset($response->data) || count($response->data) == 0)
 			{
-				// Check if only secret differs
-				$base_url = substr($callback_url, 0, -48);
-				if(strpos($response->data[0]->callback, $base_url) !== false)
+				$error_str = 'You have not entered a '.$code.' xpub';
+			}
+			elseif (count($response->data) == 1)
+			{
+				if(!$response->data[0]->callback || $response->data[0]->callback == null)
 				{
-					//Looks like the user regenrated callback by mistake
-					//Just force Update_callback on server
+					//No callback URL set, set one 
 					$post_content = '{"callback": "'.$callback_url.'", "xpub": "'.$response->data[0]->address.'"}';
 					$this->doCurlCall($set_callback_url, $post_content);  
 				}
-				else
-					$error_str = "Your have an existing callback URL. Refer instructions on integrating multiple websites";
+				elseif($response->data[0]->callback != $callback_url)
+				{
+					// Check if only secret differs
+					$base_url = substr($callback_url, 0, -48);
+					if(strpos($response->data[0]->callback, $base_url) !== false)
+					{
+						//Looks like the user regenrated callback by mistake
+						//Just force Update_callback on server
+						$post_content = '{"callback": "'.$callback_url.'", "xpub": "'.$response->data[0]->address.'"}';
+						$this->doCurlCall($set_callback_url, $post_content);  
+					}
+					else
+						$error_str = "Your have an existing ".$code." callback URL. Refer instructions on integrating multiple websites";
+				}
+			}
+			else 
+			{
+				$error_str = "Your have an existing ".$code." callback URL or multiple xPubs. Refer instructions on integrating multiple websites";
+
+				foreach ($response->data as $resObj)
+					if($resObj->callback == $callback_url)
+						// Matching callback URL found, set error back to empty
+						$error_str = '';
+			}
+
+			if ($error_str == '') {
+				// Test new address generation
+				$new_addresss_response = $this->getNewAddress('btc',true);
+				if ($new_addresss_response->status != 200){
+					$error_str = $new_addresss_response->message;
+				}
+			}
+			if ($error_str) {
+				return "$error_str";
 			}
 		}
-		else 
-		{
-			$error_str = "Your have an existing callback URL or multiple xPubs. Refer instructions on integrating multiple websites";
-
-			foreach ($response->data as $resObj)
-				if($resObj->callback == $callback_url)
-					// Matching callback URL found, set error back to empty
-					$error_str = '';
-		}
-
-		if ($error_str == '') {
-			// Test new address generation
-			$new_addresss_response = $this->getNewAddress('btc',true);
-			if ($new_addresss_response->status != 200){
-				$error_str = $new_addresss_response->message;
-			}
-		}
-
-		return $error_str;
+		return '';
 	}
 }
