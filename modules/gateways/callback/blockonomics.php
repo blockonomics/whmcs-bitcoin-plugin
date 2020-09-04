@@ -8,6 +8,7 @@ include '../../../includes/invoicefunctions.php';
 include '../Blockonomics/Blockonomics.php';
 
 use Blockonomics\Blockonomics;
+use WHMCS\Database\Capsule;
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
 
@@ -80,7 +81,10 @@ if($value < $bits - $underpayment_slack) {
 } else {
 	$paymentAmount = $order['value'];
 }
-
+$exchangerate = Capsule::table('tblcurrencies')
+->where('code', $order['order_currency'])
+->get();
+$paymentAmount = $paymentAmount / $exchangerate[0]->rate;
 $blockonomics->updateInvoiceNote($invoiceId, null);
 $blockonomics->updateOrderInDb($addr, $txid, $status, $value);
 
