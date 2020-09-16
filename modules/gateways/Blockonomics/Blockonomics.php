@@ -315,6 +315,15 @@ class Blockonomics {
 			} catch (Exception $e) {
 					exit("Unable to create blockonomics_orders: {$e->getMessage()}");
 			}
+		}else if(!Capsule::schema()->hasColumn('blockonomics_bitcoin_orders', 'order_currency')){
+			try {
+				Capsule::schema()->create( 'blockonomics_orders', function ($table) {
+							$table->string('order_currency');
+						}
+				);
+			} catch (Exception $e) {
+					exit("Unable to update blockonomics_orders: {$e->getMessage()}");
+			}
 		}
 	}
 

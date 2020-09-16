@@ -84,7 +84,7 @@ if($value < $bits - $underpayment_slack) {
 $exchangerate = Capsule::table('tblcurrencies')
 ->where('code', $order['order_currency'])
 ->get();
-$paymentAmount = $paymentAmount / $exchangerate[0]->rate;
+$paymentAmount = round($paymentAmount / $exchangerate[0]->rate, 2);
 $blockonomics->updateInvoiceNote($invoiceId, null);
 $blockonomics->updateOrderInDb($addr, $txid, $status, $value);
 
