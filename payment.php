@@ -73,7 +73,7 @@ $order_id = $blockonomics->getOrderIdByHash($order_hash);
 $ca->assign('order_id', $order_id);
 
 # Define the template filename to be used without the .tpl extension
-$ca->setTemplate('../blockonomics/payment');
+$ca->setTemplate('../../payment');
 
 $ca->output();
 
