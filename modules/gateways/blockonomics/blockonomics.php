@@ -167,7 +167,7 @@ class Blockonomics
         $fiat = $prices[0]->value;
         $btc = $prices[0]->bits / 1.0e8;
         $btc_price = $fiat / $btc;
-        return round($btc_price, 2);
+        return $this->roundUp($btc_price, 2);
     }
 
     /*
@@ -300,7 +300,7 @@ class Blockonomics
             return floatval($paymentAmount); // no convertion is requiered
         }
 
-        return round(floatval($paymentAmount) * floatval($clientByorder->rate), 2);
+        return $this->getUnderpaymentSlack(floatval($paymentAmount) * floatval($clientByorder->rate), 2);
     }
 
     /*
@@ -652,6 +652,19 @@ class Blockonomics
             }
         }
         return $langfilepath;
+    }
+
+    /**
+     * Round up with precision
+     *
+     * @param float $value
+     * @param int $precision
+     * @return float
+     */
+    public function roundUp($value, $precision)
+    {
+        $pow = pow(10, $precision);
+        return (ceil($pow * $value) + ceil($pow * $value - ceil($pow * $value))) / $pow;
     }
 
     /**
