@@ -2,49 +2,46 @@
 
 // Require libraries needed for gateway module functions.
 require '../../../init.php';
-require '../../../includes/gatewayfunctions.php';
-require '../../../includes/invoicefunctions.php';
-
 require '../blockonomics/blockonomics.php';
+App::load_function('gateway');
+App::load_function('invoice');
+$gatewayParams = getGatewayVariables('blockonomics');
+if (!$gatewayParams['type']) {
+    WHMCS\Terminus::getInstance()->doDie('Module Not Activated');
+}
+
+// Check if API provides the requiered parameters
+if (
+    App::isInRequest('secret') === false ||
+    App::isInRequest('status') === false ||
+    App::isInRequest('addr') === false ||
+    App::isInRequest('value') === false
+) {
+    WHMCS\Terminus::getInstance()->doDie($_BLOCKLANG['error']['mising_params']);
+}
 
 use Blockonomics\Blockonomics;
 
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
-
-$gatewayModuleName = 'blockonomics';
-
-// Fetch gateway configuration parameters.
-$gatewayParams = getGatewayVariables($gatewayModuleName);
-
-// Die if module is not active.
-if (!$gatewayParams['type']) {
-    exit('Module Not Activated');
-}
-
 require_once $blockonomics->getLangFilePath();
 
 // Retrieve data returned in payment gateway callback
-$secret = htmlspecialchars($_GET['secret']);
-$status = htmlspecialchars($_GET['status']);
-$addr = htmlspecialchars($_GET['addr']);
-$value = htmlspecialchars($_GET['value']);
-$txid = htmlspecialchars($_GET['txid']);
+$secret = App::getFromRequest('secret');
+$status = App::getFromRequest('status');
+$addr = App::getFromRequest('addr');
+$value = App::getFromRequest('value');
+$txid = App::getFromRequest('txid');
 
 /**
  * Validate callback authenticity.
  */
-$secret_value = $blockonomics->getCallbackSecret();
-
-if ($secret_value != $secret) {
-    $transactionStatus = $_BLOCKLANG['error']['secret'];
-    $success = false;
-
-    echo $transactionStatus;
-    exit();
+if ($blockonomics->getCallbackSecret() != $secret) {
+    WHMCS\Terminus::getInstance()->doDie($_BLOCKLANG['error']['secret']);
 }
 
 $order = $blockonomics->getOrderByAddress($addr);
+$blockonomics_currency_code = $order['blockonomics_currency'];
 $invoiceId = $order['order_id'];
 $bits = $order['bits'];
 
@@ -53,18 +50,15 @@ if ($txid == 'WarningThisIsAGeneratedTestPaymentAndNotARealBitcoinTransaction') 
     $txid = 'WarningThisIsATestTransaction_' . $invoiceId;
 }
 
-$confirmations = $blockonomics->getConfirmations();
+if ($status < $blockonomics->getConfirmations()) {
+    $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$blockonomics_currency_code];
+    if ($blockonomics_currency_code == 'btc') {
+        $subdomain = 'www';
+    } else {
+        $subdomain = $blockonomics_currency_code;
+    }
 
-$blockonomics_currency_code = $order['blockonomics_currency'];
-$blockonomics_currency = $blockonomics->getSupportedCurrencies()[$blockonomics_currency_code];
-if ($blockonomics_currency_code == 'btc') {
-    $subdomain = 'www';
-} else {
-    $subdomain = $blockonomics_currency_code;
-}
-
-$systemUrl = \App::getSystemURL();
-if ($status < $confirmations) {
+    $systemUrl = \App::getSystemURL();
     $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . $systemUrl . 'modules/gateways/blockonomics/assets/img/' . $blockonomics_currency_code . '.png" style="max-width: 20px;"> ' . $blockonomics_currency->name . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
     $blockonomics_currency->name . " transaction id:\r" .
         '<a target="_blank" href="https://' . $subdomain . ".blockonomics.co/api/tx?txid=$txid&addr=$addr\">$txid</a>";
@@ -116,7 +110,9 @@ $invoiceId = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
  */
 
 if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
-    exit();
+    $error = 'Transaction ID is duplicated';
+    logTransaction('blockonomics', $_GET, $error);
+    WHMCS\Terminus::getInstance()->doDie($error);
 }
 
 /**
@@ -133,8 +129,6 @@ if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' 
  */
 logTransaction($gatewayParams['name'], $_GET, 'Successful');
 
-$paymentFee = 0;
-
 /**
  * Add Invoice Payment.
  *
@@ -150,6 +144,6 @@ addInvoicePayment(
     $invoiceId,
     $blockonomics_currency_code . ' - ' . $txid,
     $paymentAmount,
-    $paymentFee,
-    $gatewayModuleName
+    0,
+    'blockonomics'
 );
