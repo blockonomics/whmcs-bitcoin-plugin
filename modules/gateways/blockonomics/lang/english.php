@@ -23,6 +23,7 @@ $_BLOCKLANG['poweredBy'] = 'Powered by Blockonomics';
 
 // Callback
 $_BLOCKLANG['error']['secret'] = 'Secret verification failure';
+$_BLOCKLANG['error']['mising_params'] = 'The URL is mising requiered parameters';
 $_BLOCKLANG['invoiceNote']['waiting'] = 'Waiting for Confirmation on';
 $_BLOCKLANG['invoiceNote']['network'] = 'network';
 
