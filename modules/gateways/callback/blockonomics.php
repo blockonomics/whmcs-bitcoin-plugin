@@ -75,9 +75,9 @@ $paid = $value / 1.0e8;
 $underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $bits;
 if ($value < $bits - $underpayment_slack) {
     $price_by_expected = $blockonomics->getPriceByExpected($invoiceId);
-    $paymentAmount = round($paid * $price_by_expected, 2);
+    $paymentAmount = round($paid * $price_by_expected, 5);
 } else {
-    $paymentAmount = $order['value'];
+    $paymentAmount = doubleval($order['value']);
 }
 
 $blockonomics->updateInvoiceNote($invoiceId, null);
