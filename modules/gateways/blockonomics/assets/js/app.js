@@ -23,20 +23,20 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
     var blockonomics_time_period = time_period_div.dataset.time_period;
     var totalTime = blockonomics_time_period * 60;
     var totalProgress = 100;
-    
+
     var order_uuid_div = document.getElementById("order_uuid");
     $scope.order_uuid = order_uuid_div.dataset.order_uuid;
 
     var order_id_div = document.getElementById("order_id");
     $scope.order_id = order_id_div.dataset.order_id;
-    
+
     var active_currencies_div = document.getElementById("active_currencies");
     var active_currencies = JSON.parse(active_currencies_div.dataset.active_currencies);
     $scope.active_currencies = active_currencies;
 
     $scope.copyshow = false;
     $scope.display_problems = true;
-    //Create url when the order is received 
+    //Create url when the order is received
     $scope.finish_order_url = function() {
         var params = {};
         params.finish_order = $scope.order_id;
@@ -48,7 +48,7 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
         return url;
     }
 
-    //Increment bitcoin timer 
+    //Increment bitcoin timer
     $scope.tick = function() {
         $scope.clock = $scope.clock - 1;
         $scope.progress = Math.floor($scope.clock * totalProgress / totalTime);
@@ -102,7 +102,7 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
             }
         }
     }
-    
+
     //Check if the blockonomics uuid is present
     function check_blockonomics_uuid() {
         $scope.spinner = true;
@@ -127,7 +127,7 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
             });
         }
     }
-    
+
     $scope.spinner = true;
     if(Object.keys($scope.active_currencies).length === 1){
         // Auto select btc if 1 activated currency
@@ -187,9 +187,11 @@ app.controller('CheckoutController', function($scope, $interval, Order, $httpPar
     $scope.blockonomics_amount_click = function() {
         copy_to_clipboard("bnomics-amount-copy");
     }
-    //Copy bitcoin address to clipboard
-    $scope.try_again_click = function() {
-        location.reload();
+
+    //It allows to go back to the currency selector page
+    $scope.goback_click = function () {
+        $scope.order.status = 0;
+        $scope.currency_selecter = true;
     }
 
 });

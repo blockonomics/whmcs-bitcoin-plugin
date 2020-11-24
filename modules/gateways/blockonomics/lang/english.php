@@ -13,6 +13,7 @@ $_BLOCKLANG['error']['pending']['message'] = 'Additional payments to invoice are
 $_BLOCKLANG['payWith'] = 'Pay With';
 $_BLOCKLANG['paymentExpired'] = 'Payment Expired';
 $_BLOCKLANG['tryAgain'] = 'Click here to try again';
+$_BLOCKLANG['currencySelector'] = 'Change currency';
 $_BLOCKLANG['paymentError'] = 'Payment Error';
 $_BLOCKLANG['openWallet'] = 'Open in wallet';
 $_BLOCKLANG['payAmount'] = 'To pay, send exactly this [[currency.code | uppercase]] amount';
