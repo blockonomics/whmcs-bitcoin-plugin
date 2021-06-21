@@ -110,12 +110,8 @@ class Blockonomics
         $active_currencies = [];
         $blockonomics_currencies = $this->getSupportedCurrencies();
         foreach ($blockonomics_currencies as $code => $currency) {
-            if ($code == 'btc') {
-                $enabled = true;
-            } else {
-                $gatewayParams = getGatewayVariables('blockonomics');
-                $enabled = $gatewayParams[$code . 'Enabled'];
-            }
+            $gatewayParams = getGatewayVariables('blockonomics');
+            $enabled = $gatewayParams[$code . 'Enabled'];
             if ($enabled) {
                 $active_currencies[$code] = $currency;
             }

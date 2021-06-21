@@ -1,0 +1,11 @@
+/*
+!.gitignore
+!/screenshots
+!/modules
+/modules/*
+!/modules/gateways
+/modules/gateways/*
+!/modules/gateways/blockonomics
+!/modules/gateways/blockonomics.php
+/modules/gateways/callback/*
+!/modules/gateways/callback/blockonomics.php
