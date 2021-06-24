@@ -241,12 +241,28 @@ function blockonomics_link($params)
     $blockonomics = new Blockonomics();
     $order_hash = $blockonomics->getOrderHash($params['invoiceid'], $params['amount'], $params['currency'], $params['basecurrencyamount']);
 
-    $system_url = \App::getSystemURL();
-    $form_url = $system_url . 'modules/gateways/blockonomics/payment.php';
+    $order_params = [];
+    $active_cryptos = $blockonomics->getActiveCurrencies();
+    // Check how many crypto currencies are activated
+    if (count($active_cryptos) > 1) {
+        $order_params = ['select_crypto' => $order_hash];
+    } elseif (count($active_cryptos) === 1) {
+        $order_params = [
+            'show_order' => $order_hash,
+            'crypto' => array_keys($active_cryptos)[0]
+        ];
+    } elseif (count($active_cryptos) === 0) {
+        $order_params = [
+            'crypto' => 'empty'
+        ];
+    }
 
-    //pass only the uuid to the payment page
+    $form_url = \App::getSystemURL() . 'modules/gateways/blockonomics/payment.php';
+    //pass only the order hash to the payment page
     $form = '<form action="' . $form_url . '" method="GET">';
-    $form .= '<input type="hidden" name="order" value="' . $order_hash . '"/>';
+    foreach ($order_params as $name => $param) {
+        $form .= '<input type="hidden" name="' . $name . '" value="' . $param . '"/>';
+    }
     $form .= '<input type="submit" value="' . $params['langpaynow'] . '"/>';
     $form .= '</form>';
 

@@ -90,16 +90,18 @@ class Blockonomics
      */
     public function getSupportedCurrencies()
     {
-        return [
-            'btc' => [
-                'name' => 'Bitcoin',
-                'uri' => 'bitcoin',
-            ],
-            'bch' => [
-                'name' => 'Bitcoin Cash',
-                'uri' => 'bitcoincash',
-            ],
-        ];
+        return array(
+              'btc' => array(
+                    'code' => 'btc',
+                    'name' => 'Bitcoin',
+                    'uri' => 'bitcoin'
+              ),
+              'bch' => array(
+                    'code' => 'bch',
+                    'name' => 'Bitcoin Cash',
+                    'uri' => 'bitcoincash'
+              )
+          );
     }
 
     /*
