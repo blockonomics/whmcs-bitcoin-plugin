@@ -90,7 +90,10 @@ function CheckoutController($scope, $interval, Order, $timeout, Url) {
                 "crypto": $scope.crypto.code
             }, function(data) {
                 $scope.spinner = false;
-                if(data.addr !== undefined){
+                if(data.txid !== undefined && data.txid !== ""){
+                    $scope.txid = data.txid;
+                    $scope.pending_error = true;
+                }else if(data.addr !== undefined){
                     $scope.order = data;
                     // show the checkout page
                     proccess_order_data();
