@@ -309,7 +309,7 @@ class Blockonomics
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
-                        $table->index('id_order');
+                        $table->index(['id_order', 'blockonomics_currency']);
                     }
                 );
             } catch (Exception $e) {
