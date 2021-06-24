@@ -90,16 +90,18 @@ class Blockonomics
      */
     public function getSupportedCurrencies()
     {
-        return [
-            'btc' => [
-                'name' => 'Bitcoin',
-                'uri' => 'bitcoin',
-            ],
-            'bch' => [
-                'name' => 'Bitcoin Cash',
-                'uri' => 'bitcoincash',
-            ],
-        ];
+        return array(
+              'btc' => array(
+                    'code' => 'btc',
+                    'name' => 'Bitcoin',
+                    'uri' => 'bitcoin'
+              ),
+              'bch' => array(
+                    'code' => 'bch',
+                    'name' => 'Bitcoin Cash',
+                    'uri' => 'bitcoincash'
+              )
+          );
     }
 
     /*
@@ -307,7 +309,7 @@ class Blockonomics
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
-                        $table->index('id_order');
+                        $table->index(['id_order', 'blockonomics_currency']);
                     }
                 );
             } catch (Exception $e) {
