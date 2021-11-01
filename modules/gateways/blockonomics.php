@@ -123,6 +123,7 @@ function blockonomics_config()
 			var advancedSettingsFieldArea = advancedSettingsRow.insertCell(1);
             
             var advancedLink = document.createElement('a');
+            advancedLink.classList.add('cursor');
             advancedLink.textContent = 'Advanced Settings ▼';
             advancedSettingsFieldArea.appendChild(advancedLink);
 
@@ -143,6 +144,13 @@ function blockonomics_config()
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
 
+            // Inject Custom Styles
+
+            let style = document.createElement('style');
+            style.setAttribute('type', 'text/css');
+            style.innerHTML = 'a.cursor {cursor: pointer; text-decoration: none;} a.cursor:hover {text-decoration: none;}';
+            document.head.appendChild(style);
+
 			/**
 			 * Generate Test Setup button
 			 */
@@ -155,20 +163,33 @@ function blockonomics_config()
 
             saveButtonCell.appendChild(newBtn);
 
-            function reqListener () {
+            function reqListener (response, cells) {
 				var responseObj = {};
+                
 				try {
-					responseObj = JSON.parse(this.responseText);
+					responseObj = JSON.parse(response);
 				} catch (err) {
 					var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
-					responseObj.error = true;
-					responseObj.errorStr = '$trans_text_system_url_error ' + testSetupUrl + '. $trans_text_system_url_fix';
+					responseObj = {};
+                    Object.keys(cells).forEach(crypto => {
+					    responseObj[crypto] = '$trans_text_system_url_error ' + testSetupUrl + '. $trans_text_system_url_fix';
+                    });
 				}
-				if (responseObj.error) {
-					testSetupResultCell.innerHTML = "<label style='color:red;'>Error:</label> " + responseObj.errorStr +
+
+				if (Object.keys(responseObj).length) {
+                    Object.keys(cells).forEach(crypto => {
+                        let e = responseObj[crypto]
+                        if (e) {
+                            cells[crypto].innerHTML = "<label style='color:red;'>Error:</label> " + e +
 					"<br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>";
+                        } else {
+                            cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";    
+                        }
+                    })
 				} else {
-					testSetupResultCell.innerHTML = "<label style='color:green;'>$trans_text_success</label>";
+                    Object.keys(cells).forEach(crypto => {
+                        cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";
+                    })
 				}
 				newBtn.disabled = false;
 			}
@@ -178,7 +199,7 @@ function blockonomics_config()
                 const blockonomicsForm = blockonomicsTable.parentElement;
                 blockonomicsForm.submit();
             }
-
+ 
             const addTestResultRow = (rowsFromBottom) => {
                 const testSetupResultRow = blockonomicsTable.insertRow(blockonomicsTable.rows.length - rowsFromBottom);
                 const testSetupResultLabel = testSetupResultRow.insertCell(0);
@@ -189,35 +210,45 @@ function blockonomics_config()
                 return testSetupResultCell;
             }
 
-            if(sessionStorage.getItem("runTest")) {
-
+            if(sessionStorage.getItem("runTest") && !document.querySelector('#manage .errorbox')) {
                 sessionStorage.removeItem("runTest");
 
                 const activeCryptos = JSON.parse('$active_currencies');
+                let CELLS = {};
+
                 for (const crypto in activeCryptos) {
-                    rowFromBottom = (crypto === 'btc') ? 2 : 1
-                    testSetupResultCell = addTestResultRow (rowFromBottom);
+                    rowFromBottom = (crypto === 'btc') ? 3 : 2
+                    CELLS[crypto] = addTestResultRow (rowFromBottom);
+                }
 
-                    var apiKeyField = document.getElementsByName('field[ApiKey]')[0];
-                    var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php"+"?new_api="+apiKeyField.value;
+                var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
 
-                    try {
-                        var systemUrlProtocol = new URL("$system_url").protocol;
-                    } catch (err) {
-                        var systemUrlProtocol = '';
-                    }
+                try {
+                    var systemUrlProtocol = new URL("$system_url").protocol;
+                } catch (err) {
+                    var systemUrlProtocol = '';
+                }
 
-                    if (systemUrlProtocol != location.protocol) {
-                        testSetupResultCell.innerHTML = "<label style='color:red;'>$trans_text_protocol_error</label> \
-                                $trans_text_protocol_fix";
-                    }
-                    var oReq = new XMLHttpRequest();
-                    oReq.addEventListener("load", reqListener);
+                if (systemUrlProtocol != location.protocol) {
+                    Object.keys(CELLS).forEach(crypto => {
+                        let cell = CELLS[crypto]
+                        cell.innerHTML = "<label style='color:red;'>$trans_text_protocol_error</label> \
+                            $trans_text_protocol_fix";
+                    })
+                } else {
+
+                    let oReq = new XMLHttpRequest();
+                    oReq.addEventListener("load", function() {
+                        reqListener(this.responseText, CELLS)
+                    });
                     oReq.open("GET", testSetupUrl);
-                    oReq.send();
-
                     newBtn.disabled = true;
-                    testSetupResultCell.innerHTML = "$trans_text_testing";
+                    Object.keys(CELLS).forEach(crypto => {
+                        let cell = CELLS[crypto]
+                        cell.innerHTML = "$trans_text_testing";
+                    })
+                    oReq.send();
+                    
                 }
 			}
 
@@ -298,8 +329,29 @@ HTML;
             'Type' => 'yesno',
             'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
         ];
+        if ($code == 'btc') {
+            $settings_array[$code . 'Enabled']['Default'] = true;
+        }
     }
     return $settings_array;
+}
+
+function blockonomics_config_validate($params) {
+    
+    $blockonomics = new Blockonomics();
+
+    $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
+
+    $valid = false;
+    foreach ($blockonomics_currencies as $code => $currency) {
+        if ($params[$code . 'Enabled'] == true) {
+            $valid = true;
+        }
+    }
+
+    if (!$valid) {
+        throw new \Exception('Please enable atleast one currency!');
+    }
 }
 
 function blockonomics_link($params)

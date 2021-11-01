@@ -12,6 +12,12 @@ class Blockonomics
 {
     private $version = '1.9.0';
 
+    const SET_CALLBACK_URL = 'https://www.blockonomics.co/api/update_callback';
+    const GET_CALLBACKS_URL = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+
+    const BCH_SET_CALLBACK_URL = 'https://bch.blockonomics.co/api/update_callback';
+    const BCH_GET_CALLBACKS_URL = 'https://bch.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+
     /*
      * Get the blockonomics version
      */
@@ -215,6 +221,11 @@ class Blockonomics
             $responseObj = new stdClass();
         }
         $responseObj->{'response_code'} = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (!isset($responseObj->message)) {
+            $responseObj->{'message'} = 'Error: (' . $responseObj->response_code . ') ' . $contents;
+        }
+
         curl_close($ch);
         return $responseObj;
     }
@@ -641,68 +652,178 @@ class Blockonomics
     /**
      * Run the test setup
      *
-     * @param string $new_api
      * @return string error message
      */
-    public function testSetup($new_api)
+    public function testSetup()
     {
-        include_once $this->getLangFilePath();
+        $test_results = array();
+        $active_currencies = $this->getActiveCurrencies();
+        
+        foreach ($active_currencies as $code => $currency)  {
+            $test_results[$code] = $this->test_one_currency($code);
+        }
+        
+        return $test_results;
+    }
 
-        $xpub_fetch_url = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
-        $set_callback_url = 'https://www.blockonomics.co/api/update_callback';
+    public function test_one_currency($currency)
+    {
+        include $this->getLangFilePath();
+
+        $api_key = $this->getApiKey();
         $error_str = '';
 
-        $response = $this->doCurlCall($xpub_fetch_url);
+        if (!isset($api_key) || empty($api_key)) {
+            $error_str = $_BLOCKLANG['testSetup']['emptyApi'];
+        } else {
+            $response = $this->get_callbacks($currency);
+            $error_str = $this->check_callback_urls_or_set_one($currency, $response);
+        }
+        
 
-        $secret = $this->getCallbackSecret();
-        $callback_url = $this->getCallbackUrl($secret);
+        if ($error_str == '') {
+            //Everything OK ! Test address generation
+            $error_str = $this->test_new_address_gen($currency);
+        }
+
+        if($error_str) {
+            return $error_str;
+        }
+        // No Errors
+        return false;
+    }
+
+    public function get_callbacks($currency)
+    {
+        if ($currency == 'btc'){
+            $url = Blockonomics::GET_CALLBACKS_URL;
+        }else{
+            $url = Blockonomics::BCH_GET_CALLBACKS_URL;
+        }
+        $response = $this->doCurlCall($url);
+        return $response;
+    }
+
+    public function check_callback_urls_or_set_one($currency, $response) 
+    {
         $api_key = $this->getApiKey();
-        if ($api_key != $new_api) {
-            $error_str = $_BLOCKLANG['testSetup']['newApi']; //API key changed
-        } elseif (!isset($response->response_code)) {
+
+        //check the current callback and detect any potential errors
+        $error_str = $this->check_get_callbacks_response_code($response, $currency);
+
+        if(!$error_str){
+            //if needed, set the callback.
+            $error_str = $this->check_get_callbacks_response_body($response, $currency);
+        }
+        return $error_str;
+    }
+
+    public function check_get_callbacks_response_code($response)
+    {
+        
+        include $this->getLangFilePath();
+        
+        $error_str = '';
+        
+        if (!isset($response->response_code)) {
             $error_str = $_BLOCKLANG['testSetup']['blockedHttps'];
         } elseif ($response->response_code == 401) {
             $error_str = $_BLOCKLANG['testSetup']['incorrectApi'];
         } elseif ($response->response_code != 200) {
             $error_str = $response->data;
-        } elseif (!isset($response->data) || count($response->data) == 0) {
-            $error_str = $_BLOCKLANG['testSetup']['noXpub'];
-        } elseif (count($response->data) == 1) {
-            if (!$response->data[0]->callback || $response->data[0]->callback == null) {
-                //No callback URL set, set one
-                $post_content = '{"callback": "' . $callback_url . '", "xpub": "' . $response->data[0]->address . '"}';
-                $this->doCurlCall($set_callback_url, $post_content);
-            } elseif ($response->data[0]->callback != $callback_url) {
-                // Check if only secret differs
-                $base_url = substr($callback_url, 0, -48);
-                if (strpos($response->data[0]->callback, $base_url) !== false) {
-                    //Looks like the user regenrated callback by mistake
-                    //Just force Update_callback on server
-                    $post_content = '{"callback": "' . $callback_url . '", "xpub": "' . $response->data[0]->address . '"}';
-                    $this->doCurlCall($set_callback_url, $post_content);
-                } else {
-                    $error_str = $_BLOCKLANG['testSetup']['existingCallbackUrl'];
-                }
-            }
-        } else {
-            $error_str = $_BLOCKLANG['testSetup']['multipleXpubs'];
+        }
+        
+        return $error_str;
+    }
+    
+    public function check_get_callbacks_response_body($response, $currency)
+    {
+        include $this->getLangFilePath();
 
-            foreach ($response->data as $resObj) {
-                if ($resObj->callback == $callback_url) {
-                    // Matching callback URL found, set error back to empty
-                    $error_str = '';
-                }
+        $error_str = '';
+
+        if (!isset($response->data) || count($response->data) == 0) {
+            $error_str = $_BLOCKLANG['testSetup']['addStore'];
+        }
+        //if merchant has at least one xPub on his Blockonomics account
+        elseif (count($response->data) >= 1)
+        {
+            $error_str = $this->examine_server_callback_urls($response, $currency);
+        }
+        return $error_str;
+    }
+
+    // checks each existing xpub callback URL to update and/or use
+    public function examine_server_callback_urls($response, $currency)
+    {
+        include $this->getLangFilePath();
+
+        $callback_secret = $this->getCallbackSecret();
+        $callback_url = $this->getCallbackUrl($callback_secret);
+        // Extract String before get parameters
+        $site_url = strtok($callback_url, "?");
+        // Replace http:// or https:// from the $site_url to get base_url
+        $base_url = preg_replace('/https?:\/\//', '', $site_url);
+        $error_str = '';
+
+        $available_xpub = '';
+        $partial_match = '';
+
+        //Go through all xpubs on the server and examine their callback url
+        foreach($response->data as $one_response){
+            $server_callback_url = isset($one_response->callback) ? $one_response->callback : '';
+            $server_base_url = preg_replace('/https?:\/\//', '', $server_callback_url);
+            $xpub = isset($one_response->address) ? $one_response->address : '';
+
+            if(!$server_callback_url){
+                // No callback
+                $available_xpub = $xpub;
+            }else if($server_callback_url == $callback_url){
+                // Exact match
+                return '';
+            }
+            else if(strpos($server_base_url, $base_url) === 0 ){
+                // Partial Match - Only secret or protocol differ
+                $partial_match = $xpub;
             }
         }
 
-        if ($error_str == '') {
-            // Test new address generation
-            $new_addresss_response = $this->getNewAddress('btc', true);
-            if ($new_addresss_response->status != 200) {
-                $error_str = $new_addresss_response->message;
+        // Use the available xpub
+        if($partial_match || $available_xpub){
+            $update_xpub = $partial_match ? $partial_match : $available_xpub;
+            $response = $this->update_callback($callback_url, $currency, $update_xpub);
+            if ($response->response_code != 200) {
+                return $response->message;
             }
+            return '';
         }
 
+        // No match and no empty callbac        
+        $error_str = $_BLOCKLANG['testSetup']['addStore'];
+
+        return $error_str;
+    }
+
+    public function update_callback($callback_url, $currency, $xpub)
+    {
+        if ($currency == 'btc'){
+            $url = Blockonomics::SET_CALLBACK_URL;
+        }else{
+            $url = Blockonomics::BCH_SET_CALLBACK_URL;
+        }
+
+        $post_content = '{"callback": "' . $callback_url . '", "xpub": "' . $xpub . '"}';
+        $response = $this->doCurlCall($url, $post_content);
+        return $response;
+    }
+
+    public function test_new_address_gen($currency)
+    {
+        $error_str = '';
+        $response = $this->getNewAddress($currency, true);
+        if ($response->response_code != 200){ 
+            $error_str = $response->message;
+        }
         return $error_str;
     }
 }
