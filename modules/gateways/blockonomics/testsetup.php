@@ -7,4 +7,4 @@ use Blockonomics\Blockonomics;
 
 $blockonomics = new Blockonomics();
 $error = $blockonomics->testSetup();
-echo json_encode($error);
+exit(json_encode($error));
