@@ -144,7 +144,7 @@ if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' 
  * @param string $transactionStatus  Status
  */
 $debugData = $_GET;
-$debugData['invoice'] = $invoiceId;
+$debugData['invoice_id'] = $invoiceId;
 logTransaction($gatewayParams['name'], $debugData, 'Successful');
 
 $paymentFee = 0;
