@@ -158,6 +158,7 @@ function blockonomics_config()
             saveButtonCell.style.backgroundColor = "white";
 
             const newBtn = document.createElement('BUTTON');
+            newBtn.setAttribute('type', 'button');
             newBtn.className = "btn btn-primary";
             newBtn.textContent = "Test Setup";
 
@@ -194,14 +195,35 @@ function blockonomics_config()
 				newBtn.disabled = false;
 			}
 
-			newBtn.onclick = function() {
+            function handle_ajax_save(res, xhr, settings){
+                if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
+                    // We detected the Blockonomics Request
+
+                    // Remove the listener
+                    jQuery(document).off('ajaxComplete', handle_ajax_save)
+
+                    // Do the Test
+                    if (xhr.status == 200 && sessionStorage.getItem("runTest"))
+                        doTest();
+                    
+                    // Remove Test Session Key if exists
+                    sessionStorage.removeItem("runTest");
+                }
+            }
+
+			newBtn.onclick = function(e) {
+                e.preventDefault();
+                if(typeof jQuery != 'undefined') {
+                    jQuery(document).on('ajaxComplete', handle_ajax_save)
+                }
                 sessionStorage.setItem("runTest", true);
-                const blockonomicsForm = blockonomicsTable.parentElement;
-                blockonomicsForm.submit();
+                saveButtonCell.querySelector('button[type=submit]').click();
             }
  
             const addTestResultRow = (rowsFromBottom) => {
                 const testSetupResultRow = blockonomicsTable.insertRow(blockonomicsTable.rows.length - rowsFromBottom);
+                testSetupResultRow.classList.add('blockonomics-test-row');
+
                 const testSetupResultLabel = testSetupResultRow.insertCell(0);
                 const testSetupResultCell = testSetupResultRow.insertCell(1);
                 testSetupResultRow.style.display = "none";
@@ -210,16 +232,25 @@ function blockonomics_config()
                 return testSetupResultCell;
             }
 
-            if(sessionStorage.getItem("runTest") && !document.querySelector('#manage .errorbox')) {
-                sessionStorage.removeItem("runTest");
+            function doTest() {
+                const form = new FormData(saveButtonCell.closest('form'))
+                let activeCryptos = [];
 
-                const activeCryptos = JSON.parse('$active_currencies');
+                if(form.getAll('field[btcEnabled]').includes('on'))
+                    activeCryptos.push('btc');
+                
+                if(form.getAll('field[bchEnabled]').includes('on'))
+                    activeCryptos.push('bch');
+
                 let CELLS = {};
+                
+                // Fix for AJAX based Submission, removes previous elements before adding new
+                document.querySelectorAll('.blockonomics-test-row').forEach(el => el.remove());
 
-                for (const crypto in activeCryptos) {
+                activeCryptos.forEach(crypto => {
                     rowFromBottom = (crypto === 'btc') ? 3 : 2
                     CELLS[crypto] = addTestResultRow (rowFromBottom);
-                }
+                })
 
                 var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
 
@@ -270,6 +301,12 @@ function blockonomics_config()
                 }
 
 			}
+
+            // For Non AJAX Based Submission
+            if(sessionStorage.getItem("runTest") && !document.querySelector('#manage .errorbox')) {
+                sessionStorage.removeItem("runTest");
+                doTest()
+            }
 
 		</script>
 HTML;
