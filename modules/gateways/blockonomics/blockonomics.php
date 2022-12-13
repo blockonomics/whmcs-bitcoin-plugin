@@ -347,6 +347,23 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to create blockonomics_orders: {$e->getMessage()}");
             }
+
+        /**
+         * For WHMCS 8.6 only. Manually add entry to WHMCS about the gateway as normal activation does not work
+         * Activating from Apps&Integrations causes the following error:
+         *
+         * Failed to initialise payment gateway module: Gateway Module 'blockonomics' Not Activated
+         */
+        try {
+            Capsule::table('tblpaymentgateways')->insert([
+                ['gateway' => 'blockonomics','setting' => 'name','value' => 'Blockonomics','order' => 0],
+                ['gateway' => 'blockonomics','setting' => 'type','value' => 'Invoices','order' => 0],
+                ['gateway' => 'blockonomics','setting' => 'visible','value' => 'on','order' => 0]
+            ]);
+        } catch (Exception $e) {
+            exit("Unable to insert: {$e->getMessage()}");
+        }
+
         } else if (!Capsule::schema()->hasColumn('blockonomics_orders', 'basecurrencyamount')) {
             try {
                 // basecurrencyamount fixes payment amounts when convertToForProcessing is activated
