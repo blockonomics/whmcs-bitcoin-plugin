@@ -159,7 +159,7 @@ class Blockonomics
 
         $isAdmin = FALSE;
 
-        if (version_compare($CONFIG['Version']) >= 0) {
+        if (version_compare($CONFIG['Version'], "8.0.0") >= 0) {
             $currentUser = new \WHMCS\Authentication\CurrentUser;
             $isAdmin = $currentUser->isAuthenticatedAdmin();
         } else {
