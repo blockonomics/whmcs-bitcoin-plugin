@@ -670,6 +670,10 @@ class Blockonomics
 
     public function getLangFilePath($language = false)
     {
+        // Allow only a-z
+        if (!preg_match('/^[a-z]+$/', $language)) {
+            return dirname(__FILE__) . '/lang/english.php';
+        }
         if ($language && file_exists(dirname(__FILE__) . '/lang/' . $language . '.php')) {
             $langfilepath = dirname(__FILE__) . '/lang/' . $language . '.php';
         } else {

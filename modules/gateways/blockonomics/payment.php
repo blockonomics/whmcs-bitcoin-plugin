@@ -10,7 +10,7 @@ define('CLIENTAREA', true);
 
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
-require $blockonomics->getLangFilePath(isset($_REQUEST['language']) ? htmlspecialchars($_REQUEST['language']) : '');
+require $blockonomics->getLangFilePath(isset($_GET['language']) ? htmlspecialchars($_GET['language']) : '');
 
 $ca = new ClientArea();
 
