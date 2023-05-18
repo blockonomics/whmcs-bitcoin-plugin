@@ -2,6 +2,10 @@
 if (!defined('WHMCS')) {
     exit('This file cannot be accessed directly');
 }
+
+// new todo:
+$_BLOCKLANG['updateIn'] = 'updates in';
+
 // Checkout pages
 $_BLOCKLANG['orderId'] = 'Order #';
 $_BLOCKLANG['error']['btc']['title'] = 'Could not generate new Bitcoin address.';
@@ -16,8 +20,10 @@ $_BLOCKLANG['paymentExpired'] = 'Payment Expired';
 $_BLOCKLANG['tryAgain'] = 'Click here to try again';
 $_BLOCKLANG['paymentError'] = 'Payment Error';
 $_BLOCKLANG['openWallet'] = 'Open in wallet';
-$_BLOCKLANG['payAmount'] = 'To pay, send exactly this [[crypto.code | uppercase]] amount';
-$_BLOCKLANG['payAddress'] = 'To this [[crypto.name | lowercase]] address';
+$_BLOCKLANG['payAmount1'] = 'To pay, send ';
+$_BLOCKLANG['payAmount2'] = ' to this adress';
+$_BLOCKLANG['payAddress1'] = 'Amount of '; 
+$_BLOCKLANG['payAddress2'] = ' to send';
 $_BLOCKLANG['copyClipboard'] = 'Copied to clipboard';
 $_BLOCKLANG['howToPay'] = 'How do I pay?';
 $_BLOCKLANG['poweredBy'] = 'Powered by Blockonomics';

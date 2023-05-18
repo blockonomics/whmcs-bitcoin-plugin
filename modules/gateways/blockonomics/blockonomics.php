@@ -880,17 +880,45 @@ class Blockonomics
         $ca->setTemplate("/modules/gateways/blockonomics/assets/templates/$template.tpl");
     }
 
+    public function get_payment_uri($uri, $addr, $amount)
+    {
+        return $uri['uri'] . '://' . $addr . '?amount=' . $amount;
+    }
+    
+    public function fix_displaying_small_values($satoshi)
+    {
+        if ($satoshi < 10000){
+            return rtrim(number_format($satoshi/1.0e8, 8),0);
+        } else {
+            return $satoshi/1.0e8;
+        }
+    }
+    
     public function load_checkout_template($ca, $show_order, $crypto)
     {
         $time_period_from_db = $this->getTimePeriod();
         $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
-
+        $existing_order = $this->processOrderHash($show_order, $crypto);
+        $amount_satoshi = $this->fix_displaying_small_values($existing_order->bits);
+        $active_cryptos = $this->getActiveCurrencies();
+        $crypto = $active_cryptos[$crypto];
+        $get_order_amount_url = $this->get_payment_uri($crypto, $existing_order->addr ,$amount_satoshi);
         $context = array(
             "time_period" => $time_period,
-            "cryptos" => json_encode($this->getActiveCurrencies()),
-            "selected_crypto" => $crypto,
-            "order_uuid" => $show_order
+            "crypto" => $crypto,
+            'crypto_address' => $existing_order->addr,
+            'value' => $existing_order->value,
+            'order_id' => $existing_order->id_order,
+            'currency' => $existing_order->currency,
+            'blockonomics_currency' => $existing_order->blockonomics_currency,
+            'expected_fiat' => $bits,
+            'finish_order_url' => null,
+            'amount_satoshi' => $amount_satoshi,
+            'payment_uri' => null,
+            'get_order_amount_url' => $get_order_amount_url,
         );
+
+        echo var_dump($context);
 
         $this->load_blockonomics_template($ca, 'checkout', $context);
     }
