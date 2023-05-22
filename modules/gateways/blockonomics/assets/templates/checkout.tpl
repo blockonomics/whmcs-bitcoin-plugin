@@ -70,7 +70,7 @@
                         </div>
 
                         <small class="bnomics-crypto-price-timer">
-                            1 {strtoupper($crypto['code'])} = <span id="bnomics-crypto-rate"> {$crypto_rate_str} {$order->currency}</span>  {$_BLOCKLANG.updateIn} <span class="bnomics-time-left">00:00 min</span>
+                            1 {strtoupper($crypto['code'])} = <span id="bnomics-crypto-rate"> {$crypto_rate_str}</span> {$order->currency} {$_BLOCKLANG.updateIn} <span class="bnomics-time-left">00:00 min</span>
                         </small>
                     </th>
                 </tr>
