@@ -19,8 +19,7 @@ class Blockonomics {
         // Load data attributes
         // This assumes a constant/var `blockonomics_data` is defined before the script is called.
         try {
-            // this.data = JSON.parse(blockonomics_data);
-            this.data = blockonomics_data;
+            this.data = JSON.parse(blockonomics_data);
         } catch (e) {
             if (e.toString().includes('ReferenceError')) {
                 throw Error(
