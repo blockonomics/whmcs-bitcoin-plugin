@@ -865,8 +865,9 @@ class Blockonomics
         return $error_str;
     }
 
-    public function redirect_finish_order($order_id)
+    public function redirect_finish_order($order_hash)
     {
+        $order_id = $this->decryptHash($order_hash)->id_order;
         $finish_url = \App::getSystemURL() . 'viewinvoice.php?id=' . $order_id . '&paymentsuccess=true';
         header("Location: $finish_url");
         exit();
@@ -880,16 +881,45 @@ class Blockonomics
         $ca->setTemplate("/modules/gateways/blockonomics/assets/templates/$template.tpl");
     }
 
+    public function get_payment_uri($uri, $addr, $amount)
+    {
+        return $uri . '://' . $addr . '?amount=' . $amount;
+    }
+    
+    public function fix_displaying_small_values($satoshi)
+    {
+        if ($satoshi < 10000){
+            return rtrim(number_format($satoshi/1.0e8, 8),0);
+        } else {
+            return $satoshi/1.0e8;
+        }
+    }
+
+    public function get_crypto_rate_from_params($value, $satoshi) {
+        // Crypto Rate is re-calculated here and may slightly differ from the rate provided by Blockonomics
+        // This is required to be recalculated as the rate is not stored anywhere in $order, only the converted satoshi amount is.
+        // This method also helps in having a constant conversion and formatting for both Initial Load and API Refresh
+        return number_format($value*1.0e8/$satoshi, 2, '.', '');
+    }
+    
     public function load_checkout_template($ca, $show_order, $crypto)
     {
         $time_period_from_db = $this->getTimePeriod();
         $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
 
+        $order = $this->processOrderHash($show_order, $crypto);
+        $active_cryptos = $this->getActiveCurrencies();
+
+        $crypto = $active_cryptos[$crypto];
+
         $context = array(
-            "time_period" => $time_period,
-            "cryptos" => json_encode($this->getActiveCurrencies()),
-            "selected_crypto" => $crypto,
-            "order_uuid" => $show_order
+            'time_period' => $time_period,
+            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order->bits),
+            'order' => $order,
+            'order_hash' => $show_order,
+            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits),
+            'order_amount' => $this->fix_displaying_small_values($order->bits),
+            'crypto' => $crypto
         );
 
         $this->load_blockonomics_template($ca, 'checkout', $context);
