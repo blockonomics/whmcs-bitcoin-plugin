@@ -780,8 +780,9 @@ class Blockonomics
 
         $error_str = '';
 
-        if (!isset($response->data) || count($response->data) == 0) {
-            $error_str = $_BLOCKLANG['testSetup']['addStore'];
+        if (empty($response->data) || count($response->data) == 0) {
+            $response->debug_error = "No response data";  
+            $error_str = json_encode($response);
         }
         //if merchant has at least one xPub on his Blockonomics account
         elseif (count($response->data) >= 1)
@@ -836,8 +837,9 @@ class Blockonomics
             return '';
         }
 
-        // No match and no empty callbac        
-        $error_str = $_BLOCKLANG['testSetup']['addStore'];
+        // No match and no empty callback
+        $response->debug_error = "No match found";  
+        $error_str = json_encode($response);
 
         return $error_str;
     }
