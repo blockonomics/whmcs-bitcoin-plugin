@@ -838,7 +838,8 @@ class Blockonomics
         }
 
         // No match and no empty callback
-        $response->debug_error = "No match found";  
+        $response->debug_error = "No match found";
+        $response->base_url = $base_url;
         $error_str = json_encode($response);
 
         return $error_str;
