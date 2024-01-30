@@ -883,7 +883,7 @@ class Blockonomics
 
     public function get_payment_uri($uri, $addr, $amount)
     {
-        return $uri . '://' . $addr . '?amount=' . $amount;
+        return $uri . ':' . $addr . '?amount=' . $amount;
     }
     
     public function fix_displaying_small_values($satoshi)
