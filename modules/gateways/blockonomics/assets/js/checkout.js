@@ -41,6 +41,187 @@ class Blockonomics {
 
         // Hide Display Error
         this._display_error_wrapper.style.display = 'none';
+
+        
+        this.wallet();
+    }
+
+    provider = null;
+    connectedAccount = null;
+
+    usdt = {
+        // address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        address: "0x419Fe9f14Ff3aA22e46ff1d03a73EdF3b70A62ED",
+        abi: [
+          "function name() view returns (string)",
+          "function symbol() view returns (string)",
+          "function gimmeSome() external",
+          "function balanceOf(address _owner) public view returns (uint256 balance)",
+          "function transfer(address _to, uint256 _value) public returns (bool success)",
+        ],
+    }
+
+    async wallet() {
+        const walletSetupTable = document.getElementById('wallet-setup-table');
+        const connectBtn = document.getElementById('connect-wallet');
+        const addressTable = document.getElementById('address-table');
+        const priceTable = document.getElementById('price-table');
+        const transferForm = document.getElementById('transferForm');
+
+        if (this.data.crypto.code === 'usdt') {
+            walletSetupTable.style.display = 'table';
+            addressTable.style.display = 'none';
+            priceTable.style.display = 'none';
+        } else {
+            walletSetupTable.style.display = 'none';
+            addressTable.style.display = 'table';
+            priceTable.style.display = 'table';
+            return;
+        }
+
+        this.provider = new ethers.providers.Web3Provider(window.ethereum);
+
+        this.provider.provider.on('accountsChanged', () => {
+            this.checkConnection();
+        });
+
+        connectBtn.addEventListener('click', async () => {
+            await this.provider.send("eth_requestAccounts", []);
+            const signer = this.provider.getSigner();
+
+            this.connectedAccount = await signer.getAddress();
+        });
+
+        transferForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.transferusdt();
+        });
+
+        this.checkConnection();
+    }
+
+    async checkConnection() {
+        const walletSetupTable = document.getElementById('wallet-setup-table');
+        const walletInfoTable = document.getElementById('wallet-info');
+
+        try {
+            const signer = this.provider.getSigner();
+            const userAddress = await signer.getAddress();
+
+            if (userAddress) {
+                walletSetupTable.style.display = 'none';
+                walletInfoTable.style.display = 'table';
+
+                document.getElementById("userAddress").innerText = userAddress;
+
+                const usdtBalance = await this.getBalance(userAddress);
+                document.getElementById("userAmount").innerText = `${this.data.order_amount} USDT`;
+
+                const amount = ethers.utils.parseUnits(this.data.order_amount, 6);
+
+                if (usdtBalance.lt(amount)) {
+                    let amountFormatted = ethers.utils.formatUnits(amount, 6);
+                    let balanceFormatted = ethers.utils.formatUnits(usdtBalance, 6);
+                    console.error(
+                    `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
+                    );
+                
+                    const response = `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`;
+                    document.getElementById("transferResponse").innerText = response;
+                    document.getElementById("transferResponse").style.display = "block";
+                }
+            } else {
+                walletSetupTable.style.display = 'table';
+                walletInfoTable.style.display = 'none';
+            }
+        } catch (e) {
+            walletSetupTable.style.display = 'table';
+            walletInfoTable.style.display = 'none';
+        }
+    }
+
+    async getBalance(wallet) {
+        const signer = this.provider.getSigner();
+        const usdtContract = new ethers.Contract(this.usdt.address, this.usdt.abi, signer);
+        const balance = await usdtContract.balanceOf(wallet);
+        return balance;
+        // return ethers.utils.formatUnits(balance, 6);
+    }
+
+    async transferusdt() {
+        let receiver = this.data.usdt_receivers_address;
+
+        const signer = this.provider.getSigner();
+        const usdtContract = new ethers.Contract(this.usdt.address, this.usdt.abi, signer);
+        let response = '';
+        let amount = this.data.order_amount;
+
+        try {
+            receiver = ethers.utils.getAddress(receiver);
+        } catch {
+            response = `Invalid address: ${receiver}`;
+            document.getElementById("transferResponse").innerText = response;
+            document.getElementById("transferResponse").style.display = "block";
+            return;
+        }
+
+        try {
+            amount = ethers.utils.parseUnits(amount, 6);
+            if (amount.isNegative()) {
+              throw new Error();
+            }
+        } catch {
+            console.error(`Invalid amount: ${amount}`);
+            response = `Invalid amount: ${amount}`;
+            document.getElementById("transferResponse").innerText = response;
+            document.getElementById("transferResponse").style.display = "block";
+            return;
+        }
+
+        const userAddress = await signer.getAddress();
+        const balance = await usdtContract.balanceOf(userAddress);
+
+        if (balance.lt(amount)) {
+            let amountFormatted = ethers.utils.formatUnits(amount, 6);
+            let balanceFormatted = ethers.utils.formatUnits(balance, 6);
+            console.error(
+              `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
+            );
+        
+            response = `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`;
+            document.getElementById("transferResponse").innerText = response;
+            document.getElementById("transferResponse").style.display = "block";
+            return;
+        }
+
+        let amountFormatted = ethers.utils.formatUnits(amount, 6);
+
+        response = `Transferring ${amountFormatted} usdt receiver ${receiver.slice(
+            0,
+            6
+          )}...`;
+
+        document.getElementById("transferResponse").innerText = response;
+        document.getElementById("transferResponse").style.display = "block";
+    
+        const tx = await usdtContract.transfer(receiver, amount, { gasPrice: 20e9 });
+        document.getElementById(
+        "transferResponse"
+        ).innerText += `Transaction hash: ${tx.hash}`;
+    
+        const receipt = await tx.wait();
+        document.getElementById(
+        "transferResponse"
+        ).innerText += `Transaction confirmed in block ${receipt.blockNumber}`;
+        
+        this.redirect_to_finish_order();
+    }
+
+    async disconnect() {
+        await window.ethereum.request({
+            method: "eth_requestAccounts",
+            params: [{eth_accounts: {}}]
+        })
     }
 
     create_bindings() {

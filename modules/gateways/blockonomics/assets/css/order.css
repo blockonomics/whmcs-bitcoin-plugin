@@ -339,13 +339,13 @@ svg {
   margin-right: auto;
 }
 
-.bnomics-copy-container {
+.bnomics-copy-container, .bnomics-checkout-container {
   display:flex;
   align-items: center;
   position: relative;
 }
 
-.bnomics-copy-container input {
+.bnomics-copy-container input, .bnomics-checkout-container input {
   flex-grow: 1;
 }
 
