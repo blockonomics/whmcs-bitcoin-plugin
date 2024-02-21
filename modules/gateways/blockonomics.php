@@ -78,6 +78,12 @@ function blockonomics_config()
 				element.max = 10;
 				element.step = 0.01;
 			});
+            
+            /**
+			 * get the usdt element by field name 
+			 */
+            var inputMargin = document.getElementsByName('field[UsdtAddress]');
+
 
 			/**
 			 * Generate Settings and Currency Headers
@@ -337,6 +343,8 @@ HTML;
         'Type' => 'text',
     ];
 
+   
+
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],
         'Type' => 'text',
@@ -391,8 +399,13 @@ HTML;
         ];
         if ($code == 'btc') {
             $settings_array[$code . 'Enabled']['Default'] = true;
-        }
+        }  
     }
+    $settings_array['UsdtAddress'] = [
+        'FriendlyName' => $_BLOCKLANG['usdtAddress']['title'],
+        'Description' => $_BLOCKLANG['usdtAddress']['description'],
+        'Type' => 'text',
+    ];
     return $settings_array;
 }
 
