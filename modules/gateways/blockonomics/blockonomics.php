@@ -914,11 +914,11 @@ class Blockonomics
 
         $context = array(
             'time_period' => $time_period,
-            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order->bits),
             'order' => $order,
             'order_hash' => $show_order,
             'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits),
             'order_amount' => $this->fix_displaying_small_values($order->bits),
+            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $context['order_amount']),
             'crypto' => $crypto
         );
 
