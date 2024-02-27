@@ -150,6 +150,9 @@ svg {
 .bnomics-icon-btc:before {
   content: "\e901";
 }
+.bnomics-icon-usdt:before {
+  content: "\e902";
+}
 
 .bnomics-select-options {
   cursor:pointer;

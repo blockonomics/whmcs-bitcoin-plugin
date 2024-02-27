@@ -213,8 +213,21 @@ class Blockonomics {
         document.getElementById(
         "transferResponse"
         ).innerText += `Transaction confirmed in block ${receipt.blockNumber}`;
+
+        // order table to be updated
+
+        const result = {
+            to: receipt.to,
+            from: receipt.from,
+            txn: receipt.transactionHash,
+            blockNumber: receipt.blockNumber,
+            status: receipt.status,
+            crypto: 'usdt'
+        };
+
+        // send the data to the BE with signed
         
-        this.redirect_to_finish_order();
+        this.redirect_to_finish_order(result);
     }
 
     async disconnect() {
@@ -354,6 +367,9 @@ class Blockonomics {
     }
 
     connect_to_ws() {
+        if (this.data.crypto.code === 'usdt') {
+            return;
+        }
         //Connect and Listen on websocket for payment notification
         var ws = new ReconnectingWebSocket(
             'wss://' +
@@ -425,8 +441,21 @@ class Blockonomics {
         }
     }
 
-    redirect_to_finish_order() {
-        window.location.href = this.data.finish_order_url;
+    redirect_to_finish_order(params = {}) {
+        let url = this.data.finish_order_url;
+
+        let queryParams = new URLSearchParams();
+        for (const key in params) {
+            if (params.hasOwnProperty(key)) {
+                queryParams.append(key, params[key]);
+            }
+        }
+
+        if (Array.from(queryParams).length > 0) {
+            url += '&' + queryParams.toString();
+        }
+
+        window.location.href = url;
     }
 
     _create_loading_rectangle(ref, target) {

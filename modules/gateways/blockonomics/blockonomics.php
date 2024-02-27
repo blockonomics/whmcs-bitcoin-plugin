@@ -537,7 +537,7 @@ class Blockonomics
     public function createNewCryptoOrder($order, $blockonomics_currency)
     {
         if ($blockonomics_currency === 'usdt') {
-            $order->addr = '';
+            $order->addr = $blockonomics_currency . '-' . $order->id_order;
         } else {
             $new_addresss_response = $this->getNewAddress($blockonomics_currency);
             if ($new_addresss_response->response_code == 200) {
