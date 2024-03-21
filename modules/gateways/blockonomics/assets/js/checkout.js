@@ -208,25 +208,14 @@ class Blockonomics {
         document.getElementById(
         "transferResponse"
         ).innerText += `Transaction hash: ${tx.hash}`;
-    
-        const receipt = await tx.wait();
-        document.getElementById(
-        "transferResponse"
-        ).innerText += `Transaction confirmed in block ${receipt.blockNumber}`;
-
-        // order table to be updated
 
         const result = {
-            to: receipt.to,
-            from: receipt.from,
-            txn: receipt.transactionHash,
-            blockNumber: receipt.blockNumber,
-            status: receipt.status,
+            txn: tx.hash,
             crypto: 'usdt'
         };
 
-        // send the data to the BE with signed
-        
+        console.log({tx});
+
         this.redirect_to_finish_order(result);
     }
 

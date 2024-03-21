@@ -31,7 +31,6 @@ $show_order = isset($_GET["show_order"]) ? htmlspecialchars($_GET['show_order'])
 $crypto = isset($_GET["crypto"]) ? htmlspecialchars($_GET['crypto']) : "";
 $select_crypto = isset($_GET["select_crypto"]) ? htmlspecialchars($_GET['select_crypto']) : "";
 $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_order']) : "";
-$to = isset($_GET["to"]) ? htmlspecialchars($_GET['to']) : "";
 $from = isset($_GET["from"]) ? htmlspecialchars($_GET['from']) : "";
 $txn = isset($_GET["txn"]) ? htmlspecialchars($_GET['txn']) : "";
 $status = isset($_GET["status"]) ? htmlspecialchars($_GET['status']) : "";
@@ -47,7 +46,7 @@ if($crypto === "empty"){
         "order_hash" => $select_crypto
     ));
 }else if ($finish_order) {
-    process_finish_order($finish_order, $crypto, $to ,$from,$txn,$status);
+    process_finish_order($finish_order, $crypto, $txn);
     $blockonomics->redirect_finish_order($finish_order);
 }else if ($get_order && $crypto) {
     $existing_order = $blockonomics->processOrderHash($get_order, $crypto);

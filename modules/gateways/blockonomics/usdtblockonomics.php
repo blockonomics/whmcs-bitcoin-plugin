@@ -9,81 +9,39 @@ use Blockonomics\Blockonomics;
 
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
+$systemUrl = \App::getSystemURL();
 
-function getTransactionReceipt($transactionHash)
-{
-    $apiUrl = "https://eth-sepolia.g.alchemy.com/v2/iSnijy8E7R8CYTM3Wn6x-jxLE25cAZ_J";
-    $postData = [
-        "method" => "eth_getTransactionReceipt",
-        "params" => [$transactionHash],
-        "id" => 1,
-        "jsonrpc" => "2.0"
-    ];
-
-    $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-
-    $response = curl_exec($ch);
-    if ($response === FALSE) {
-        die(curl_error($ch));
-    }
-
-    curl_close($ch);
-    $res = json_decode($response, true);
-    return $res['result'];
-}
-
-function process_finish_order($finish_order, $crypto, $to, $from, $txn, $status)
+function process_finish_order($finish_order, $crypto, $txid)
 {
     global $blockonomics;
+    require_once $blockonomics->getLangFilePath();
+
     if ($crypto === "usdt") {
+
         $order = $blockonomics->processOrderHash($finish_order, $crypto);
+
+        if (empty($order)) {
+            return;
+        }
+
+        // trigger api to listen to mined transaction
 
         $invoiceId = $order->id_order;
         $value = $order->value;
-        $paymentFee = 0;
-        $gatewayModuleName = 'blockonomics';
-        $gatewayParams = getGatewayVariables($gatewayModuleName);
+        $new_address = $crypto . '-' . $invoiceId;
 
-        $receipt = getTransactionReceipt($txn);
-        $toAddress = $receipt['to'];
-        $fromAddress = $receipt['from'];
+        $subdomain = "sepolia";
 
-        if (strtolower($toAddress) == strtolower($to) &&  strtolower($fromAddress) == strtolower($from)) {
-            $new_address = $crypto . '-' . $invoiceId;
-            $paymentAmount = get_payment_amount($order);
-            $blockonomics->updateOrderInDb($new_address, $txn, $status, $value);
-            $blockonomics->updateInvoiceNote($invoiceId, null);
+        $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$crypto];
 
-            $invoiceId = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
+        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . $systemUrl . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency->name . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
+        $blockonomics_currency->name . " transaction id:\r" .
+            '<a target="_blank" href="https://' . $subdomain . ".etherscan.io/tx/$txid\">$txid</a>";
 
-            $txid = $txn . " - " . $from;
+        $blockonomics->updateOrderInDb($new_address, $txid, 0, $value);
+        $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 
-            if (!$blockonomics->checkIfTransactionExists($crypto . ' - ' . $txid)) {
-                addInvoicePayment(
-                    $invoiceId,
-                    $crypto . ' - ' . $txid,
-                    $paymentAmount,
-                    $paymentFee,
-                    $gatewayModuleName
-                );
-            }
-        }
+        $path = __DIR__ . '/pollTransactionStatus.php';
+        exec("php $path $txid > /dev/null &", $output, $return_var);
     }
-}
-function get_payment_amount($order)
-{
-    global $blockonomics;
-    $underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $order->bits;
-    if ($order->value < $order->bits - $underpayment_slack || $order->value > $order->bits) {
-        $satoshiAmount = $order->value;
-    } else {
-        $satoshiAmount = $order->bits;
-    }
-    $percentPaid = $satoshiAmount / $order->bits * 100;
-    $paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency((array) $order, $percentPaid);
-    return $paymentAmount;
 }

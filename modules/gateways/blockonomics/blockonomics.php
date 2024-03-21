@@ -617,7 +617,33 @@ class Blockonomics
             'basecurrencyamount' => $existing_order->basecurrencyamount,
         ];
     }
+    
+    /*
+     * Try to get order row from db by transaction
+     */
 
+    public function getOrderByTransaction($txid)
+    {
+        try {
+            $existing_order = Capsule::table('blockonomics_orders')
+                ->where('txid', $txid)
+                ->first();
+        } catch (Exception $e) {
+            exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
+        }
+
+        return [
+            'order_id' => $existing_order->id_order,
+            'timestamp' => $existing_order->timestamp,
+            'status' => $existing_order->status,
+            'value' => $existing_order->value,
+            'bits' => $existing_order->bits,
+            'bits_payed' => $existing_order->bits_payed,
+            'blockonomics_currency' => $existing_order->blockonomics_currency,
+            'addr' => $existing_order->addr,
+            'basecurrencyamount' => $existing_order->basecurrencyamount,
+        ];
+    }
     /*
      * Get the order id using the order hash
      */
