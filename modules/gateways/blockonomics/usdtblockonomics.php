@@ -11,6 +11,11 @@ use Blockonomics\Blockonomics;
 $blockonomics = new Blockonomics();
 $systemUrl = \App::getSystemURL();
 
+function logMessage($message) {
+    $logFile = __DIR__ . '/poll_log.txt';
+    file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL, FILE_APPEND);
+}
+
 function process_finish_order($finish_order, $crypto, $txid)
 {
     global $blockonomics;
@@ -24,13 +29,16 @@ function process_finish_order($finish_order, $crypto, $txid)
             return;
         }
 
-        // trigger api to listen to mined transaction
+        $any_existing_order = $blockonomics->getOrderByTransaction($txid);
+
+        if ($any_existing_order && $any_existing_order["order_id"]) {
+            return;
+        }
 
         $invoiceId = $order->id_order;
-        $value = $order->value;
         $new_address = $crypto . '-' . $invoiceId;
-
-        $subdomain = "sepolia";
+        
+        $subdomain = $blockonomics->getNetworktype() === "Test" ? "sepolia" : "www";
 
         $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$crypto];
 
@@ -38,7 +46,7 @@ function process_finish_order($finish_order, $crypto, $txid)
         $blockonomics_currency->name . " transaction id:\r" .
             '<a target="_blank" href="https://' . $subdomain . ".etherscan.io/tx/$txid\">$txid</a>";
 
-        $blockonomics->updateOrderInDb($new_address, $txid, 0, $value);
+        $blockonomics->updateOrderInDb($new_address, $txid, 0, 0);
         $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 
         $path = __DIR__ . '/pollTransactionStatus.php';

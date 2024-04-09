@@ -199,6 +199,33 @@ class Blockonomics
     }
 
     /*
+     * Get usdt address from setting page  
+     */
+    public function getUsdtaddress()
+    {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        return $gatewayParams['UsdtAddress'];
+    }
+
+    /*
+     * Get api key from the setting page 
+     */
+    public function getEtherscanapikey()
+    {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        return $gatewayParams['EtherScanAPIKey'];
+    }
+    
+     /*
+     * Get network type  from the setting page 
+     */
+
+    public function getNetworktype()
+    {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        return $gatewayParams['NetworkType'];
+    }
+    /*
      * See if given txid is applied to any invoice
      */
     public function checkIfTransactionExists($txid)
@@ -319,7 +346,7 @@ class Blockonomics
         }
 
         if ($blockonomics_currency === 'usdt') {
-            return $fiat_amount / $price;
+            return intval(1.0e6 * $fiat_amount / $price);
         }
         return intval(1.0e8 * $fiat_amount / $price);
     }
@@ -986,7 +1013,9 @@ class Blockonomics
             'order_hash' => $show_order,
             'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency),
-            'crypto' => $crypto
+            'crypto' => $crypto,
+            'usdtaddress' => $this->getUsdtaddress(),
+            'networktype'=> $this->getNetworktype()
         );
 
         $this->load_blockonomics_template($ca, 'checkout', $context);

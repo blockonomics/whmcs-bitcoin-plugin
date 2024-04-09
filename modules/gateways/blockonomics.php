@@ -61,6 +61,7 @@ function blockonomics_config()
 				inputLabels[i].style.paddingRight = '20px';
 			}
 
+
 			/**
 			 * Set available values for margin setting
 			 */
@@ -83,7 +84,12 @@ function blockonomics_config()
 			 * get the usdt element by field name 
 			 */
             var inputMargin = document.getElementsByName('field[UsdtAddress]');
-
+            
+             
+            /**
+			 * get the etherScan api element by field name 
+			 */
+            var etherScanAPI = document.getElementByName('field[etherScanAPI]');
 
 			/**
 			 * Generate Settings and Currency Headers
@@ -318,6 +324,14 @@ function blockonomics_config()
                 doTest()
             }
 
+
+            document.getElementById('configblockonomicsForm').addEventListener('submit', function() {
+                fetch('/modules/gateways/blockonomics/process.php')
+                    .then(response => response.json())
+                    .then(data => console.log(data))
+                    .catch((error) => console.error('Error:', error));
+            });
+
 		</script>
 HTML;
         }
@@ -405,6 +419,21 @@ HTML;
         'FriendlyName' => $_BLOCKLANG['usdtAddress']['title'],
         'Description' => $_BLOCKLANG['usdtAddress']['description'],
         'Type' => 'text',
+    ];
+    $settings_array['EtherScanAPIKey'] = [
+        'FriendlyName' => $_BLOCKLANG['etherScanAPI']['title'],
+        'Description' => $_BLOCKLANG['etherScanAPI']['description'],
+        'Type' => 'text',
+    ];
+    $settings_array['NetworkType'] = [
+        'FriendlyName' => $_BLOCKLANG['networkType']['title'],
+        'Description' => $_BLOCKLANG['networkType']['description'],
+        'Type' => 'dropdown',
+        'Default' => 'Main',
+        'Options' => [
+            'Main' => 'Main Ethereum Network',
+            'Test' => 'Sepolia Test Network',
+        ]
     ];
     return $settings_array;
 }

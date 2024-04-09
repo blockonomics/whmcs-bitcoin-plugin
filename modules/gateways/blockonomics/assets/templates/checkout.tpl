@@ -39,6 +39,11 @@
                             <button id="connect-wallet" class="btn btn-success w-100" style="display:block;">
                                 Connect wallet
                             </button>
+                            <div
+                            class="alert alert-info mt-2"
+                            id="connectResponse"
+                            style="display: none"
+                            ></div>
                         </div>
                     </td>
                 </tr>
@@ -165,7 +170,8 @@ var blockonomics_data = JSON.stringify({
     finish_order_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}',
     payment_uri: '{$payment_uri}',
     order_amount: '1',
-    usdt_receivers_address: '0x5efA68A6Ceab888D2dC5e2c6E5d51b704C8b9BAc'
+    usdt_receivers_address: '{$usdtaddress}',
+    network_type:'{$networktype}',
 })
 </script>
 

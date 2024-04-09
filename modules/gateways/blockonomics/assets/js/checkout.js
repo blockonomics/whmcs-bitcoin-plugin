@@ -8,6 +8,20 @@ class Blockonomics {
         this.init();
     }
 
+    usdt = {
+        address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        abi: [
+          "function name() view returns (string)",
+          "function symbol() view returns (string)",
+          "function gimmeSome() external",
+          "function balanceOf(address _owner) public view returns (uint256 balance)",
+          "function transfer(address _to, uint256 _value) public returns (bool success)",
+        ],
+    }
+
+    provider = null;
+    connectedAccount = null;
+
     init() {
         this.container = document.getElementById(this.checkout_id);
         if (!this.container) {
@@ -46,27 +60,16 @@ class Blockonomics {
         this.wallet();
     }
 
-    provider = null;
-    connectedAccount = null;
-
-    usdt = {
-        // address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-        address: "0x419Fe9f14Ff3aA22e46ff1d03a73EdF3b70A62ED",
-        abi: [
-          "function name() view returns (string)",
-          "function symbol() view returns (string)",
-          "function gimmeSome() external",
-          "function balanceOf(address _owner) public view returns (uint256 balance)",
-          "function transfer(address _to, uint256 _value) public returns (bool success)",
-        ],
-    }
-
     async wallet() {
         const walletSetupTable = document.getElementById('wallet-setup-table');
         const connectBtn = document.getElementById('connect-wallet');
         const addressTable = document.getElementById('address-table');
         const priceTable = document.getElementById('price-table');
         const transferForm = document.getElementById('transferForm');
+
+        if (this.data?.network_type === 'Test') {
+            this.usdt.address = '0x419Fe9f14Ff3aA22e46ff1d03a73EdF3b70A62ED';
+        }
 
         if (this.data.crypto.code === 'usdt') {
             walletSetupTable.style.display = 'table';
@@ -79,10 +82,19 @@ class Blockonomics {
             return;
         }
 
-        this.provider = new ethers.providers.Web3Provider(window.ethereum);
+        this.provider = new ethers.providers.Web3Provider(window.ethereum, "any");
 
-        this.provider.provider.on('accountsChanged', () => {
+        this.provider.provider.on('accountsChanged', async () => {
             this.checkConnection();
+        });
+
+        this.provider.on("network", (newNetwork, oldNetwork) => {
+            // When a Provider makes its initial connection, it emits a "network"
+            // event with a null oldNetwork along with the newNetwork. So, if the
+            // oldNetwork exists, it represents a changing network
+            if (oldNetwork) {
+                window.location.reload();
+            }
         });
 
         connectBtn.addEventListener('click', async () => {
@@ -90,12 +102,22 @@ class Blockonomics {
             const signer = this.provider.getSigner();
 
             this.connectedAccount = await signer.getAddress();
+
+            const network = await this.provider.getNetwork();
+            const desiredNetworkId = this.data.network_type === "Test" ? 11155111 : 1;
+
+            if(network.chainId === desiredNetworkId) {
+                console.log("Connected to the correct network");
+            } else {
+                console.error("Connected to the wrong network");
+            }
         });
 
         transferForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this.transferusdt();
         });
+        
 
         this.checkConnection();
     }
@@ -107,6 +129,18 @@ class Blockonomics {
         try {
             const signer = this.provider.getSigner();
             const userAddress = await signer.getAddress();
+
+            const network = await this.provider.getNetwork();
+            const desiredNetworkId = this.data.network_type === "Test" ? 11155111 : 1;
+
+            document.getElementById("connectResponse").style.display = "none";
+
+            if(network.chainId !== desiredNetworkId) {
+                const response = `Please change the wallet network before connecting the wallet`;
+                document.getElementById("connectResponse").innerText = response;
+                document.getElementById("connectResponse").style.display = "block";
+                return;
+            }
 
             if (userAddress) {
                 walletSetupTable.style.display = 'none';
@@ -135,6 +169,7 @@ class Blockonomics {
                 walletInfoTable.style.display = 'none';
             }
         } catch (e) {
+            console.log(e);
             walletSetupTable.style.display = 'table';
             walletInfoTable.style.display = 'none';
         }
