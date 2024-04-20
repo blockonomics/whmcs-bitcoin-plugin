@@ -15,10 +15,20 @@ $apiKey = $blockonomics->getEtherscanapikey();
 $networkType =  $blockonomics->getNetworktype();
 $domain = ($networkType === 'Test') ? 'https://api-sepolia.etherscan.io' : 'https://api.etherscan.io';
 
-function logMessage($message) {
+function logMessage($action, $Request, $Response) {
     $logFile = __DIR__ . '/poll_log.txt';
     file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL, FILE_APPEND);
+
+    if (function_exists('logModuleCall')) {
+        logModuleCall(
+            "Blockonomics",
+            $action,
+            $Request,
+            $Response,
+        );
+    }
 }
+
 
 function pollTransactionStatus($txHash) {
     global $apiKey;
@@ -26,7 +36,7 @@ function pollTransactionStatus($txHash) {
 
     $url = "$domain/api?module=transaction&action=getstatus&txhash=$txHash&apikey=$apiKey";
 
-    logMessage("Polling started for transaction: $txHash");
+    logMessage("Polling ","Request sent to etherscan server started for transaction: $txHash ","Start");
     
     do {
         sleep(10); // Wait for 10 seconds
@@ -39,19 +49,21 @@ function pollTransactionStatus($txHash) {
 
         $data = json_decode($response, true);
 
+
+
         if ($data['message'] === "NOTOK") {
-            logMessage("Transaction $txHash failed.");
+            logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
             break;
         }
 
         if ($data['status'] === "1") {
             process($txHash);
-            logMessage("Transaction $txHash completed successfully.");
+            logMessage("Polling", " Requested Transaction $txHash to check whether it is completed successfully or not.", "Completed");
             break;
         }
     } while (true);
 
-    logMessage("Polling ended for transaction: $txHash");
+    logMessage("Polling","Request checks whether transaction ended: $txHash","Ended");
     die();
 }
 
@@ -65,7 +77,7 @@ function process($txHash) {
     $order = $blockonomics->getOrderByTransaction($txHash);
 
     if (empty($order)) {
-        logMessage("Order not found for transaction: $txHash");
+        logMessage("Validating","Order not found for transaction: $txHash","Not Found");
         return;
     }
 
@@ -81,7 +93,7 @@ function process($txHash) {
     $inputData = $result['input'];
 
     if (!(substr($inputData, 0, 10) === '0xa9059cbb')) {
-        logMessage("The transaction is not an ERC20 token transfer.: $txHash");
+        logMessage("Validating","Identify whether the ERC20 transaction ","Transcation not of type is not an ERC20 token transfer.: $txHash");
         return;
     }
     $toAddress =  $blockonomics->getUsdtaddress();
@@ -91,7 +103,7 @@ function process($txHash) {
 
     
     if(strtolower($toAddress) != strtolower($txnToAddress)) {
-        logMessage("To address didn't match for transaction: $txHash");
+        logMessage("Validating","To check whether the address  match for transaction: $txHash","Transaction didn't match");
         return;
     }
     
@@ -116,7 +128,7 @@ function process($txHash) {
     $txid = $txHash . " - " . $order['addr'];
 
     if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
-        logMessage("transaction already exists in the order: $blockonomics_currency_code  - $txid");
+        logMessage("Validating","Checking whether transaction already exists  or not in the order: $blockonomics_currency_code  - $txid","Transaction already exsist $txid");
         return;
     }
 

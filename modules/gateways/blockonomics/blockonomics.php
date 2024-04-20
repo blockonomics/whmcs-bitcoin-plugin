@@ -101,16 +101,19 @@ class Blockonomics
                 'code' => 'btc',
                 'name' => 'Bitcoin',
                 'uri' => 'bitcoin',
+                'decimals' => 8,
             ],
             'bch' => [
                 'code' => 'bch',
                 'name' => 'Bitcoin Cash',
                 'uri' => 'bitcoincash',
+                'decimals' => 8,
             ],
             'usdt' => array(
                 'code' => 'usdt',
                 'name' => 'USDT',
-                'uri' => 'USDT' 
+                'uri' => 'USDT',
+                'decimals' => 6, 
             )
         ];
     }
@@ -1017,8 +1020,11 @@ class Blockonomics
             'usdtaddress' => $this->getUsdtaddress(),
             'networktype'=> $this->getNetworktype()
         );
+     
+        $template = $crypto['code'] == "usdt" ? 'web3_checkout' : 'checkout';
 
-        $this->load_blockonomics_template($ca, 'checkout', $context);
+        $this->load_blockonomics_template($ca, $template, $context);
+
     }
 
     public function get_order_checkout_params($params)

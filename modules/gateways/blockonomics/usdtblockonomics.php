@@ -11,11 +11,6 @@ use Blockonomics\Blockonomics;
 $blockonomics = new Blockonomics();
 $systemUrl = \App::getSystemURL();
 
-function logMessage($message) {
-    $logFile = __DIR__ . '/poll_log.txt';
-    file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL, FILE_APPEND);
-}
-
 function process_finish_order($finish_order, $crypto, $txid)
 {
     global $blockonomics;

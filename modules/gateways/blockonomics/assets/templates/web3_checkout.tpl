@@ -31,7 +31,88 @@
                     </th>
                 </tr>
             </table>
-            <table>
+
+            <table id="wallet-setup-table">
+                <tr>
+                    <td>
+                        <div class="form-group mt-3">
+                            <button id="connect-wallet" class="btn btn-success w-100" style="display:block;">
+                                Connect wallet
+                            </button>
+                            <div
+                            class="alert alert-info mt-2"
+                            id="connectResponse"
+                            style="display: none"
+                            ></div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table id="wallet-info" style="display:none">
+                <tr>
+                    <th style="text-align:left;">
+                        <div style="display: flex;align-items: center;justify-content: space-between;">
+                            <p class="m-0 p-0">Your address:</p>
+                                <small
+                                class="
+                                    bg-light
+                                    text-muted text-lowercase
+                                    p-2
+                                    px-3
+                                    rounded-pill
+                                "
+                                id="userAddress"
+                                style="width: 200px;overflow: hidden;text-overflow: ellipsis;"
+                                >0x..add-here</small
+                                >
+                        </div>
+                    </th>
+                </tr>
+
+                <tr>
+                    <th>
+                        <div style="display: flex;align-items: center;justify-content: space-between;">
+                            <p class="m-0 p-0">To send:</p>
+                            <small
+                            class="
+                                bg-light
+                                text-muted
+                                p-2
+                                px-3
+                                rounded-pill
+                            "
+                            id="userAmount"
+                            style="width: 200px;text-align:right;"
+                            >0.00 USDT</small
+                            >
+                        </div>
+                    </th>
+                </tr>
+
+                <tr>
+                    <td>
+                        <form
+                            class="mt-4"
+                            id="transferForm"
+                        >
+                            <div class="form-group mt-3">
+                                <button class="btn btn-success w-100" type="submit" style="display:block;">
+                                    Pay Now
+                                </button>
+                            </div>
+                        </form>
+
+                        <div
+                        class="alert alert-info mt-2"
+                        id="transferResponse"
+                        style="display: none"
+                        ></div>
+                    </td>
+                </tr>
+            </table>
+
+            <table id="address-table">
                 <tr>
                     <th>
                         <!-- Order Address -->
@@ -57,7 +138,8 @@
                     </th>
                 </tr>
             </table>
-            <table>
+
+            <table id="price-table">
                 <tr>
                     <th>
                         <label class="bnomics-amount-text">{$_BLOCKLANG.payAddress1}{strtolower($crypto['name'])} ({strtoupper($crypto['code'])}){$_BLOCKLANG.payAddress2}</label>
@@ -74,7 +156,6 @@
                         </small>
                     </th>
                 </tr>
-
             </table>
         </div>
     </div>
@@ -88,9 +169,14 @@ var blockonomics_data = JSON.stringify({
     get_order_amount_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?get_order={$order_hash}&crypto={$crypto['code']}',
     finish_order_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}',
     payment_uri: '{$payment_uri}',
+    order_amount: '1',
+    usdt_receivers_address: '{$usdtaddress}',
+    network_type:'{$networktype}',
 })
 </script>
 
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js "></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/ethers.min.js"></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/web3modal-ethers.min.js"></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/web3_checkout.js "></script>
