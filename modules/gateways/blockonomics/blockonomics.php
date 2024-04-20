@@ -204,7 +204,7 @@ class Blockonomics
     /*
      * Get usdt address from setting page  
      */
-    public function getUsdtaddress()
+    public function getUSDTAddress()
     {
         $gatewayParams = getGatewayVariables('blockonomics');
         return $gatewayParams['UsdtAddress'];
@@ -213,7 +213,7 @@ class Blockonomics
     /*
      * Get api key from the setting page 
      */
-    public function getEtherscanapikey()
+    public function getEtherscanApiKey()
     {
         $gatewayParams = getGatewayVariables('blockonomics');
         return $gatewayParams['EtherScanAPIKey'];
@@ -223,7 +223,7 @@ class Blockonomics
      * Get network type  from the setting page 
      */
 
-    public function getNetworktype()
+    public function getNetworkType()
     {
         $gatewayParams = getGatewayVariables('blockonomics');
         return $gatewayParams['NetworkType'];
@@ -301,6 +301,18 @@ class Blockonomics
         return $gatewayParams['Margin'];
     }
 
+    private function fetchPrice($url) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $contents = curl_exec($ch);
+        if (curl_errno($ch)) {
+            exit('Error:' . curl_error($ch));
+        }
+        curl_close($ch);
+        return $contents;
+    }
+
     /*
      * Convert fiat amount to Blockonomics currency
      */
@@ -308,35 +320,14 @@ class Blockonomics
     {
         try {
             if ($blockonomics_currency === 'usdt') {
-                $ch = curl_init();
-
-                curl_setopt($ch, CURLOPT_URL, 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-                $contents = curl_exec($ch);
-                if (curl_errno($ch)) {
-                    exit('Error:' . curl_error($ch));
-                }
-                curl_close($ch);
+                $url = 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency;
+                $contents = $this->fetchPrice($url);
                 $data = json_decode($contents);
                 $price = $data->{strtoupper($currency)};
             } else {
-                if ($blockonomics_currency == 'btc') {
-                    $subdomain = 'www';
-                } else {
-                    $subdomain = $blockonomics_currency;
-                }
-
-                $ch = curl_init();
-
-                curl_setopt($ch, CURLOPT_URL, 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-                $contents = curl_exec($ch);
-                if (curl_errno($ch)) {
-                    exit('Error:' . curl_error($ch));
-                }
-                curl_close($ch);
+                $subdomain = ($blockonomics_currency == 'btc') ? 'www' : $blockonomics_currency;
+                $url = 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency;
+                $contents = $this->fetchPrice($url);
                 $price = json_decode($contents)->price;
             }
 
@@ -608,7 +599,6 @@ class Blockonomics
         }
         // Process a new order for the id and blockonomics currency
         $new_order = $this->createNewCryptoOrder($order_info, $blockonomics_currency);
-        
         $log_data = array(
             'invoice_id' => $new_order->id_order,
             'address' => $new_order->addr,
@@ -978,14 +968,14 @@ class Blockonomics
         if ($blockonomics_currency == 'usdt') {
             // For USDT, you usually don't need to display very small fractional values.
             // Assuming $amount is in USDT, and typically 2 decimal places are sufficient.
-            return number_format($satoshi, 2, '.', '');
-        }else {
-            if ($satoshi < 10000){
-                return rtrim(number_format($satoshi/1.0e8, 8),0);
-            } else {
-                return $satoshi/1.0e8;
-            }
+            return rtrim(number_format($satoshi/1.0e6, 2, '.', ''));
         }
+
+        if ($satoshi < 10000) {
+            return rtrim(number_format($satoshi/1.0e8, 8),0);
+        }
+
+        return $satoshi/1.0e8;
     }
 
     public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currencies) {
@@ -1017,8 +1007,8 @@ class Blockonomics
             'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency),
             'crypto' => $crypto,
-            'usdtaddress' => $this->getUsdtaddress(),
-            'networktype'=> $this->getNetworktype()
+            'usdt_address' => $this->getUSDTAddress(),
+            'network_type'=> $this->getNetworkType()
         );
      
         $template = $crypto['code'] == "usdt" ? 'web3_checkout' : 'checkout';

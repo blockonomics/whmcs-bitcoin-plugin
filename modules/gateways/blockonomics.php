@@ -61,7 +61,6 @@ function blockonomics_config()
 				inputLabels[i].style.paddingRight = '20px';
 			}
 
-
 			/**
 			 * Set available values for margin setting
 			 */
@@ -80,17 +79,6 @@ function blockonomics_config()
 				element.step = 0.01;
 			});
             
-            /**
-			 * get the usdt element by field name 
-			 */
-            var inputMargin = document.getElementsByName('field[UsdtAddress]');
-            
-             
-            /**
-			 * get the etherScan api element by field name 
-			 */
-            var etherScanAPI = document.getElementByName('field[etherScanAPI]');
-
 			/**
 			 * Generate Settings and Currency Headers
 			 */
@@ -324,14 +312,6 @@ function blockonomics_config()
                 doTest()
             }
 
-
-            document.getElementById('configblockonomicsForm').addEventListener('submit', function() {
-                fetch('/modules/gateways/blockonomics/process.php')
-                    .then(response => response.json())
-                    .then(data => console.log(data))
-                    .catch((error) => console.error('Error:', error));
-            });
-
 		</script>
 HTML;
         }
@@ -356,8 +336,6 @@ HTML;
         'Description' => $_BLOCKLANG['apiKey']['description'],
         'Type' => 'text',
     ];
-
-   
 
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],
@@ -413,7 +391,7 @@ HTML;
         ];
         if ($code == 'btc') {
             $settings_array[$code . 'Enabled']['Default'] = true;
-        }  
+        }
     }
     $settings_array['UsdtAddress'] = [
         'FriendlyName' => $_BLOCKLANG['usdtAddress']['title'],

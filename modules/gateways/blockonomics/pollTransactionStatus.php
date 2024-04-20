@@ -6,33 +6,36 @@ require_once __DIR__ . '/blockonomics.php';
 
 use Blockonomics\Blockonomics;
 
-// Init Blockonomics class
+// Initialization of the Blockonomics class
 $blockonomics = new Blockonomics();
 
+// Fetch module and API configuration
 $gatewayModuleName = 'blockonomics';
 $gatewayParams = getGatewayVariables($gatewayModuleName);
-$apiKey = $blockonomics->getEtherscanapikey();
-$networkType =  $blockonomics->getNetworktype();
-$domain = ($networkType === 'Test') ? 'https://api-sepolia.etherscan.io' : 'https://api.etherscan.io';
+$apiKey = $blockonomics->getEtherscanApiKey();
+$networkType =  $blockonomics->getNetworkType();
+$subDomain = ($networkType === 'Test') ? 'api-sepolia' : 'api';
+$domain = 'https://'. $subDomain .'.etherscan.io';
 
-function logMessage($action, $Request, $Response) {
-    $logFile = __DIR__ . '/poll_log.txt';
-    file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL, FILE_APPEND);
-
+// Log messages for debugging
+function logMessage($action, $request, $response) {
     if (function_exists('logModuleCall')) {
-        logModuleCall(
-            "Blockonomics",
-            $action,
-            $Request,
-            $Response,
-        );
+        logModuleCall( "Blockonomics", $action, $request, $response);
     }
 }
 
+// Function to handle curl requests
+function performCurlRequest($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    return $response;
+}
 
+// Main function to poll transaction status
 function pollTransactionStatus($txHash) {
-    global $apiKey;
-    global $domain;
+    global $apiKey, $domain;
 
     $url = "$domain/api?module=transaction&action=getstatus&txhash=$txHash&apikey=$apiKey";
 
@@ -40,16 +43,8 @@ function pollTransactionStatus($txHash) {
     
     do {
         sleep(10); // Wait for 10 seconds
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($ch);
-        curl_close($ch);
-
+        $response = performCurlRequest($url);
         $data = json_decode($response, true);
-
-
 
         if ($data['message'] === "NOTOK") {
             logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
@@ -71,8 +66,6 @@ function process($txHash) {
     global $blockonomics;
     global $gatewayParams;
     global $gatewayModuleName;
-    global $apiKey;
-    global $domain;
 
     $order = $blockonomics->getOrderByTransaction($txHash);
 
@@ -81,50 +74,26 @@ function process($txHash) {
         return;
     }
 
-    $url = "$domain/api?module=proxy&action=eth_getTransactionByHash&txhash=$txHash&apikey=$apiKey";
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $data = json_decode($response, true);
-    $result = $data['result'];
+    $result = fetchTransactionData($txHash);
     $inputData = $result['input'];
 
     if (!(substr($inputData, 0, 10) === '0xa9059cbb')) {
         logMessage("Validating","Identify whether the ERC20 transaction ","Transcation not of type is not an ERC20 token transfer.: $txHash");
         return;
     }
-    $toAddress =  $blockonomics->getUsdtaddress();
-    $txnToAddress = '0x' . substr($inputData, 34, 40);
-    $tokenAmountHex = substr($inputData, 74, 64);
-    $tokenAmount = hexdec($tokenAmountHex);
 
-    
-    if(strtolower($toAddress) != strtolower($txnToAddress)) {
+    if (!isValidTransaction($inputData)) {
         logMessage("Validating","To check whether the address  match for transaction: $txHash","Transaction didn't match");
         return;
     }
-    
-    $invoiceId = $order['order_id'];
-    $bits = $order['bits'];
 
-    $underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $bits;
-    if ($tokenAmount < $bits - $underpayment_slack || $tokenAmount > $bits) {
-        $satoshiAmount = $tokenAmount;
-    } else {
-        $satoshiAmount = $bits;
-    }
-    $percentPaid = $satoshiAmount / $bits * 100;
-    $paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);
+    $tokenAmountHex = substr($inputData, 74, 64);
+    $tokenAmount = hexdec($tokenAmountHex);
 
-    $blockonomics->updateInvoiceNote($invoiceId, null);
+    $blockonomics->updateInvoiceNote($order['order_id'], null);
     $blockonomics->updateOrderInDb($order['addr'], $txHash, 2, $tokenAmount);
-
-    $invoiceId = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
+    
     $blockonomics_currency_code = 'usdt';
-
     $txid = $txHash . " - " . $order['addr'];
 
     if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
@@ -132,7 +101,9 @@ function process($txHash) {
         return;
     }
 
+    $paymentAmount = getPaymentAmount($order['bits'], $tokenAmount, $order);
     $paymentFee = 0;
+    $invoiceId = checkCbInvoiceID($order['order_id'], $gatewayParams['name']);
 
     addInvoicePayment(
         $invoiceId,
@@ -143,6 +114,37 @@ function process($txHash) {
     );
 }
 
+// Fetch transaction data from etherscan
+function fetchTransactionData($txHash) {
+    global $apiKey, $domain;
+    $url = "$domain/api?module=proxy&action=eth_getTransactionByHash&txhash=$txHash&apikey=$apiKey";
+    $response = performCurlRequest($url);
+    $data = json_decode($response, true);
+    return $data['result'];
+}
+
+// Validate transaction details
+function isValidTransaction($inputData) {
+    global $blockonomics;
+    $toAddress = $blockonomics->getUSDTAddress();
+    $txnToAddress = '0x' . substr($inputData, 34, 40);
+    return strtolower($toAddress) === strtolower($txnToAddress);
+}
+
+function getPaymentAmount($bits, $tokenAmount, $order) {
+    global $blockonomics;
+
+    $underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $bits;
+    if ($tokenAmount < $bits - $underpayment_slack || $tokenAmount > $bits) {
+        $satoshiAmount = $tokenAmount;
+    } else {
+        $satoshiAmount = $bits;
+    }
+    $percentPaid = $satoshiAmount / $bits * 100;
+    $paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);
+
+    return $paymentAmount;
+}
 
 // Extract transaction hash and API key from command line arguments
 $txHash = $argv[1];

@@ -111,52 +111,6 @@
                     </td>
                 </tr>
             </table>
-
-            <table id="address-table">
-                <tr>
-                    <th>
-                        <!-- Order Address -->
-                        <label class="bnomics-address-text">{$_BLOCKLANG.payAmount1}{strtolower($crypto['name'])}{$_BLOCKLANG.payAmount2}</label>
-                        <label class="bnomics-copy-address-text">{$_BLOCKLANG.copyClipboard}</label>
-                        <div class="bnomics-copy-container">
-                            <input type="text" value="{$order->addr}" id="bnomics-address-input" readonly/>
-                            <span id="bnomics-address-copy" class="blockonomics-icon-copy"></span>
-                            <span id="bnomics-show-qr" class="blockonomics-icon-qr"></span>
-                        </div>
-                        
-                        <div class="bnomics-qr-code">
-                            <div class="bnomics-qr">
-                                <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">
-                                    <canvas id="bnomics-qr-code"></canvas>
-                                </a>
-                            </div>
-                            <small class="bnomics-qr-code-hint">
-                                <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">{$_BLOCKLANG.openWallet}</a>
-                            </small>
-                        </div>
-
-                    </th>
-                </tr>
-            </table>
-
-            <table id="price-table">
-                <tr>
-                    <th>
-                        <label class="bnomics-amount-text">{$_BLOCKLANG.payAddress1}{strtolower($crypto['name'])} ({strtoupper($crypto['code'])}){$_BLOCKLANG.payAddress2}</label>
-                        <label class="bnomics-copy-amount-text">{$_BLOCKLANG.copyClipboard}</label>
-
-                        <div class="bnomics-copy-container" id="bnomics-amount-copy-container">
-                            <input type="text" value="{$order_amount}" id="bnomics-amount-input" readonly/>
-                            <span id="bnomics-amount-copy" class="blockonomics-icon-copy"></span>
-                            <span id="bnomics-refresh" class="blockonomics-icon-refresh"></span>
-                        </div>
-
-                        <small class="bnomics-crypto-price-timer">
-                            1 {strtoupper($crypto['code'])} = <span id="bnomics-crypto-rate"> {$crypto_rate_str}</span> {$order->currency} {$_BLOCKLANG.updateIn} <span class="bnomics-time-left">00:00 min</span>
-                        </small>
-                    </th>
-                </tr>
-            </table>
         </div>
     </div>
 </div>
@@ -170,13 +124,10 @@ var blockonomics_data = JSON.stringify({
     finish_order_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}',
     payment_uri: '{$payment_uri}',
     order_amount: '1',
-    usdt_receivers_address: '{$usdtaddress}',
-    network_type:'{$networktype}',
+    usdt_receivers_address: '{$usdt_address}',
+    network_type:'{$network_type}',
 })
 </script>
 
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/ethers.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/web3modal-ethers.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/web3_checkout.js "></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/web3_checkout.js"></script>
