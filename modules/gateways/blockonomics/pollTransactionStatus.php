@@ -34,41 +34,38 @@ function performCurlRequest($url) {
 }
 
 // Main function to poll transaction status
-function pollTransactionStatus($txHash) {
+function pollTransactionStatus($order) {
     global $apiKey, $domain;
-
+    
+    $txHash = $order->txid;
     $url = "$domain/api?module=transaction&action=getstatus&txhash=$txHash&apikey=$apiKey";
 
     logMessage("Polling ","Request sent to etherscan server started for transaction: $txHash ","Start");
     
-    do {
-        sleep(10); // Wait for 10 seconds
-        $response = performCurlRequest($url);
-        $data = json_decode($response, true);
+    $response = performCurlRequest($url);
+    $data = json_decode($response, true);
 
-        if ($data['message'] === "NOTOK") {
-            logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
-            break;
-        }
+    if ($data['message'] === "NOTOK") {
+        logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
+        return;
+    }
 
-        if ($data['status'] === "1") {
-            process($txHash);
-            logMessage("Polling", " Requested Transaction $txHash to check whether it is completed successfully or not.", "Completed");
-            break;
-        }
-    } while (true);
+    if ($data['status'] === "1") {
+        process($order);
+        logMessage("Polling", " Requested Transaction $txHash to check whether it is completed successfully or not.", "Completed");
+        return;
+    }
 
     logMessage("Polling","Request checks whether transaction ended: $txHash","Ended");
-    die();
 }
 
-function process($txHash) {
+function process($order) {
     global $blockonomics;
     global $gatewayParams;
     global $gatewayModuleName;
-
-    $order = $blockonomics->getOrderByTransaction($txHash);
-
+    
+    $txHash = $order->txid;
+    
     if (empty($order)) {
         logMessage("Validating","Order not found for transaction: $txHash","Not Found");
         return;
@@ -90,20 +87,20 @@ function process($txHash) {
     $tokenAmountHex = substr($inputData, 74, 64);
     $tokenAmount = hexdec($tokenAmountHex);
 
-    $blockonomics->updateInvoiceNote($order['order_id'], null);
-    $blockonomics->updateOrderInDb($order['addr'], $txHash, 2, $tokenAmount);
+    $blockonomics->updateInvoiceNote($order->id_order, null);
+    $blockonomics->updateOrderInDb($order->addr, $txHash, 2, $tokenAmount);
     
     $blockonomics_currency_code = 'usdt';
-    $txid = $txHash . " - " . $order['addr'];
+    $txid = $txHash . " - " . $order->addr;
 
     if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
         logMessage("Validating","Checking whether transaction already exists  or not in the order: $blockonomics_currency_code  - $txid","Transaction already exsist $txid");
         return;
     }
 
-    $paymentAmount = getPaymentAmount($order['bits'], $tokenAmount, $order);
+    $paymentAmount = getPaymentAmount($order->bits, $tokenAmount, $order);
     $paymentFee = 0;
-    $invoiceId = checkCbInvoiceID($order['order_id'], $gatewayParams['name']);
+    $invoiceId = checkCbInvoiceID($order->id_order, $gatewayParams['name']);
 
     addInvoicePayment(
         $invoiceId,
@@ -141,11 +138,19 @@ function getPaymentAmount($bits, $tokenAmount, $order) {
         $satoshiAmount = $bits;
     }
     $percentPaid = $satoshiAmount / $bits * 100;
-    $paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);
+    $paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency((array)$order, $percentPaid);
 
     return $paymentAmount;
 }
 
-// Extract transaction hash and API key from command line arguments
-$txHash = $argv[1];
-pollTransactionStatus($txHash);
+
+do {
+    sleep(60); // Wait for 60 seconds
+    $unconfirmedOrders = $blockonomics->getUnconfirmedOrders();
+    
+    if (!$unconfirmedOrders->isEmpty()) {
+        foreach ($unconfirmedOrders as $order) {
+            pollTransactionStatus($order);
+        }
+    }
+} while (true);

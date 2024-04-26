@@ -123,7 +123,7 @@ var blockonomics_data = JSON.stringify({
     get_order_amount_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?get_order={$order_hash}&crypto={$crypto['code']}',
     finish_order_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}',
     payment_uri: '{$payment_uri}',
-    order_amount: '1',
+    order_amount: '{$order_amount}',
     usdt_receivers_address: '{$usdt_address}',
     network_type:'{$network_type}',
 })

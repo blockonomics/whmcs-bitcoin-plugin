@@ -24,6 +24,8 @@ $ca->addToBreadCrumb('payment.php', 'Bitcoin Payment');
 
 $ca->initPage();
 
+$blockonomics->start_polling_job();
+
 /*
  * SET POST PARAMETERS TO VARIABLES AND CHECK IF THEY EXIST
  */
@@ -57,7 +59,8 @@ if($crypto === "empty"){
         $response = [
             "order_amount" => $blockonomics->fix_displaying_small_values($existing_order->bits, $existing_order->blockonomics_currency),
             "crypto_rate_str" => $blockonomics->get_crypto_rate_from_params($existing_order->value, $existing_order->bits, $existing_order->blockonomics_currency),
-            "payment_uri" => $blockonomics->get_payment_uri($blockonomics->getSupportedCurrencies()[$crypto]['uri'], $existing_order->addr, $existing_order->bits)
+            "payment_uri" => $blockonomics->get_payment_uri($blockonomics->getSupportedCurrencies()[$crypto]['uri'], $existing_order->addr, $existing_order->bits),
+            "getUnconfirmedOrders" => $blockonomics->getUnconfirmedOrders()
         ];
         header('Content-Type: application/json');
         exit(json_encode($response));

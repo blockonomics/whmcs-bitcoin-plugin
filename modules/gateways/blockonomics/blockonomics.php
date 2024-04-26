@@ -5,6 +5,7 @@ namespace Blockonomics;
 use Exception;
 use stdClass;
 use WHMCS\Database\Capsule;
+use DateTime;
 
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
@@ -386,6 +387,7 @@ class Blockonomics
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
+                        $table->integer('expiry_time');
                         $table->index('id_order');
                     }
                 );
@@ -402,7 +404,14 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to update blockonomics_orders: {$e->getMessage()}");
             }
+            
+        } else if (!Capsule::schema()->hasColumn('blockonomics_orders', 'expiry_time')) {
+             // If the column doesn't exist, add it
+            Capsule::schema()->table('blockonomics_orders', function($table) {
+                $table->integer('expiry_time');
+            });
         }
+        
     }
 
     /**
@@ -664,6 +673,27 @@ class Blockonomics
             'basecurrencyamount' => $existing_order->basecurrencyamount,
         ];
     }
+ 
+    /*
+     * Try to get order row from db by transaction
+     */
+
+     public function getUnconfirmedOrders()
+     {
+         try {
+
+            $currentDateTime = new DateTime();
+
+             $unconfirmed_orders = Capsule::table('blockonomics_orders')
+                 ->where('status', 0)
+                 ->where('expiry_time', '>', $currentDateTime->getTimestamp())
+                 ->get();
+         } catch (Exception $e) {
+             exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
+         }
+ 
+         return $unconfirmed_orders;
+     }
     /*
      * Get the order id using the order hash
      */
@@ -676,18 +706,24 @@ class Blockonomics
     /*
      * Update existing order information. Use BTC payment address as key
      */
-    public function updateOrderInDb($addr, $txid, $status, $bits_payed)
+    public function updateOrderInDb($addr, $txid, $status, $bits_payed, $expiry_time = null)
     {
         try {
+            
+            $dataToUpdate = [
+                'txid' => $txid,
+                'status' => $status,
+                'bits_payed' => $bits_payed
+            ];
+            
+            // Check if an expiry date is provided and not null.
+            if ($expiry_time !== null) {
+               $dataToUpdate['expiry_time'] = $expiry_time;
+            }
+           
             Capsule::table('blockonomics_orders')
                 ->where('addr', $addr)
-                ->update(
-                    [
-                        'txid' => $txid,
-                        'status' => $status,
-                        'bits_payed' => $bits_payed,
-                    ]
-                );
+                ->update($dataToUpdate);
         } catch (Exception $e) {
             exit("Unable to update order to blockonomics_orders: {$e->getMessage()}");
         }
@@ -1039,5 +1075,19 @@ class Blockonomics
         }
 
         return $order_params;
+    }
+
+    public function start_polling_job() {
+        $path = __DIR__ . '/pollTransactionStatus.php';
+
+        // Command to check if the specific PHP script is running
+        $checkCommand = "pgrep -f 'php $path'";
+        exec($checkCommand, $output, $return_var);
+
+        if (empty($output)) {
+            $startCommand = "php $path > /dev/null &";
+            exec($startCommand, $startOutput, $startReturnVar);
+            echo "The job was not running and has been started.\n";
+        }
     }
 }

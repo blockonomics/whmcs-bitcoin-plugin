@@ -43,9 +43,11 @@ function process_finish_order($finish_order, $crypto, $txid)
     $blockonomics_currency->name . " transaction id:\r" .
         '<a target="_blank" href="https://' . $subdomain . ".etherscan.io/tx/$txid\">$txid</a>";
 
-    $blockonomics->updateOrderInDb($new_address, $txid, 0, 0);
-    $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 
-    $path = __DIR__ . '/pollTransactionStatus.php';
-    exec("php $path $txid > /dev/null &", $output, $return_var);
+    $expiryDateTime = new DateTime();
+    $interval = new DateInterval('P1D');
+    $expiryDateTime->add($interval);
+    
+    $blockonomics->updateOrderInDb($new_address, $txid, 0, 0, $expiryDateTime->getTimestamp());
+    $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 }
