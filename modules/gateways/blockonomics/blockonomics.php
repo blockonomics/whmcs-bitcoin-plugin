@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '1.9.7';
+    private $version = '1.9.8';
 
     const SET_CALLBACK_URL = 'https://www.blockonomics.co/api/update_callback';
     const GET_CALLBACKS_URL = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
@@ -996,7 +996,7 @@ class Blockonomics
 
     public function get_payment_uri($uri, $addr, $amount)
     {
-        return $uri . '://' . $addr . '?amount=' . $amount;
+        return $uri . ':' . $addr . '?amount=' . $amount;
     }
     
     public function fix_displaying_small_values($satoshi, $blockonomics_currency)
@@ -1034,14 +1034,15 @@ class Blockonomics
         $active_cryptos = $this->getActiveCurrencies();
 
         $crypto = $active_cryptos[$crypto];
-
+        $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
+        
         $context = array(
             'time_period' => $time_period,
-            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order->bits),
             'order' => $order,
             'order_hash' => $show_order,
             'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
-            'order_amount' => $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency),
+            'order_amount' => $order_amount,
+            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount),
             'crypto' => $crypto,
             'usdt_address' => $this->getUSDTAddress(),
             'network_type'=> $this->getNetworkType()
