@@ -33,7 +33,8 @@ function process_finish_order($finish_order, $crypto, $txid)
     }
 
     $invoiceId = $order->id_order;
-    $new_address = $crypto . '-' . $invoiceId;
+    $usdt_recieving_address = $blockonomics->getUSDTAddress();
+    $new_address = $usdt_recieving_address . '-' . $invoiceId;
     
     $subdomain = $blockonomics->getNetworkType() === "sepolia" ? "sepolia" : "www";
 
