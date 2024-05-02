@@ -79,16 +79,7 @@ class Blockonomics {
         connectBtn.addEventListener('click', async () => {
             await this.provider.send("eth_requestAccounts", []);
             const signer = this.provider.getSigner();
-
             this.connectedAccount = await signer.getAddress();
-
-            const network = await this.provider.getNetwork();
-
-            if(network.chainId === Number(this.data.chain_id)) {
-                console.log("Connected to the correct network");
-            } else {
-                console.error("Connected to the wrong network");
-            }
         });
 
         transferForm.addEventListener('submit', (e) => {
