@@ -26,16 +26,16 @@ function process_finish_order($finish_order, $crypto, $txid)
         return;
     }
 
-    $any_existing_order = $blockonomics->getOrderByTransaction($txid);
+    $transactionExists = $blockonomics->blockonomicsTransactionExists($txid);
 
-    if ($any_existing_order && $any_existing_order["order_id"]) {
+    if ($transactionExists) {
         return;
     }
 
     $invoiceId = $order->id_order;
     $new_address = $crypto . '-' . $invoiceId;
     
-    $subdomain = $blockonomics->getNetworkType() === "Test" ? "sepolia" : "www";
+    $subdomain = $blockonomics->getNetworkType() === "sepolia" ? "sepolia" : "www";
 
     $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$crypto];
 
@@ -43,11 +43,6 @@ function process_finish_order($finish_order, $crypto, $txid)
     $blockonomics_currency->name . " transaction id:\r" .
         '<a target="_blank" href="https://' . $subdomain . ".etherscan.io/tx/$txid\">$txid</a>";
 
-
-    $expiryDateTime = new DateTime();
-    $interval = new DateInterval('P1D');
-    $expiryDateTime->add($interval);
-    
-    $blockonomics->updateOrderInDb($new_address, $txid, 0, 0, $expiryDateTime->getTimestamp());
+    $blockonomics->updateOrderInDb($new_address, $txid, 0, 0);
     $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 }

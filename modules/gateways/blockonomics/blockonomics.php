@@ -6,6 +6,7 @@ use Exception;
 use stdClass;
 use WHMCS\Database\Capsule;
 use DateTime;
+use DateInterval;
 
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
@@ -117,6 +118,26 @@ class Blockonomics
                 'decimals' => 6, 
             )
         ];
+    }
+
+    public function getUSDTNetworkDetails($selectedNetwork)
+    {
+        $tokenNetworks = array(
+            'ethereum' => array(
+                'chainId' => 1,
+                'tokens' => array(
+                    'usdt' => '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+                )
+            ),
+            'sepolia' => array(
+                'chainId' => 11155111,
+                'tokens' => array(
+                    'usdt' => '0x419Fe9f14Ff3aA22e46ff1d03a73EdF3b70A62ED'
+                )
+            )
+        );
+
+        return $tokenNetworks[$selectedNetwork];
     }
 
     /*
@@ -340,10 +361,11 @@ class Blockonomics
             exit("Error getting price from Blockonomics! {$e->getMessage()}");
         }
 
-        if ($blockonomics_currency === 'usdt') {
-            return intval(1.0e6 * $fiat_amount / $price);
-        }
-        return intval(1.0e8 * $fiat_amount / $price);
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        
+        $multiplier = pow(10, $crypto['decimals']);
+        return intval($multiplier * $fiat_amount / $price);
     }
 
     /**
@@ -387,7 +409,6 @@ class Blockonomics
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
-                        $table->integer('expiry_time');
                         $table->index('id_order');
                     }
                 );
@@ -404,14 +425,7 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to update blockonomics_orders: {$e->getMessage()}");
             }
-            
-        } else if (!Capsule::schema()->hasColumn('blockonomics_orders', 'expiry_time')) {
-             // If the column doesn't exist, add it
-            Capsule::schema()->table('blockonomics_orders', function($table) {
-                $table->integer('expiry_time');
-            });
-        }
-        
+        } 
     }
 
     /**
@@ -554,9 +568,7 @@ class Blockonomics
                 ]
             );
         } catch (Exception $e) {
-            if ($blockonomics_currency != 'usdt') {
-                exit("Unable to insert new order into blockonomics_orders: {$e->getMessage()}");
-            }
+            exit("Unable to insert new order into blockonomics_orders: {$e->getMessage()}");
         }
         return true;
     }
@@ -567,7 +579,8 @@ class Blockonomics
     public function createNewCryptoOrder($order, $blockonomics_currency)
     {
         if ($blockonomics_currency === 'usdt') {
-            $order->addr = $blockonomics_currency . '-' . $order->id_order;
+            $usdt_recieving_address = $this->getUSDTAddress();
+            $order->addr = $usdt_recieving_address . '-' . $order->id_order;
         } else {
             $new_addresss_response = $this->getNewAddress($blockonomics_currency);
             if ($new_addresss_response->response_code == 200) {
@@ -651,42 +664,31 @@ class Blockonomics
      * Try to get order row from db by transaction
      */
 
-    public function getOrderByTransaction($txid)
+    public function blockonomicsTransactionExists($txid)
     {
-        try {
-            $existing_order = Capsule::table('blockonomics_orders')
-                ->where('txid', $txid)
-                ->first();
-        } catch (Exception $e) {
-            exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
-        }
+        $existing_order = Capsule::table('blockonomics_orders')
+            ->where('txid', $txid)
+            ->first();
 
-        return [
-            'order_id' => $existing_order->id_order,
-            'timestamp' => $existing_order->timestamp,
-            'status' => $existing_order->status,
-            'value' => $existing_order->value,
-            'bits' => $existing_order->bits,
-            'bits_payed' => $existing_order->bits_payed,
-            'blockonomics_currency' => $existing_order->blockonomics_currency,
-            'addr' => $existing_order->addr,
-            'basecurrencyamount' => $existing_order->basecurrencyamount,
-        ];
+        return $existing_order !== null;
     }
  
     /*
      * Try to get order row from db by transaction
      */
 
-     public function getUnconfirmedOrders()
+     public function getUnconfirmedUSDTOrders()
      {
          try {
 
             $currentDateTime = new DateTime();
+            $interval = new DateInterval('P1D');
+            $currentDateTime->sub($interval);
 
              $unconfirmed_orders = Capsule::table('blockonomics_orders')
                  ->where('status', 0)
-                 ->where('expiry_time', '>', $currentDateTime->getTimestamp())
+                 ->where('blockonomics_currency', 'usdt')
+                 ->where('timestamp', '>', $currentDateTime->getTimestamp())
                  ->get();
          } catch (Exception $e) {
              exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
@@ -706,24 +708,16 @@ class Blockonomics
     /*
      * Update existing order information. Use BTC payment address as key
      */
-    public function updateOrderInDb($addr, $txid, $status, $bits_payed, $expiry_time = null)
+    public function updateOrderInDb($addr, $txid, $status, $bits_payed)
     {
         try {
-            
-            $dataToUpdate = [
-                'txid' => $txid,
-                'status' => $status,
-                'bits_payed' => $bits_payed
-            ];
-            
-            // Check if an expiry date is provided and not null.
-            if ($expiry_time !== null) {
-               $dataToUpdate['expiry_time'] = $expiry_time;
-            }
-           
             Capsule::table('blockonomics_orders')
                 ->where('addr', $addr)
-                ->update($dataToUpdate);
+                ->update([
+                    'txid' => $txid,
+                    'status' => $status,
+                    'bits_payed' => $bits_payed
+                ]);
         } catch (Exception $e) {
             exit("Unable to update order to blockonomics_orders: {$e->getMessage()}");
         }
@@ -1015,10 +1009,6 @@ class Blockonomics
     }
 
     public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currencies) {
-        if ($blockonomics_currencies == 'usdt') {
-            // For USDT, a direct conversion can be used as it is typically pegged to a fiat currency
-            return $value / $satoshi;
-        }
         // Crypto Rate is re-calculated here and may slightly differ from the rate provided by Blockonomics
         // This is required to be recalculated as the rate is not stored anywhere in $order, only the converted satoshi amount is.
         // This method also helps in having a constant conversion and formatting for both Initial Load and API Refresh
@@ -1027,31 +1017,33 @@ class Blockonomics
     
     public function load_checkout_template($ca, $show_order, $crypto)
     {
-        $time_period_from_db = $this->getTimePeriod();
-        $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
-
         $order = $this->processOrderHash($show_order, $crypto);
         $active_cryptos = $this->getActiveCurrencies();
-
-        $crypto = $active_cryptos[$crypto];
         $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
-        
+        $crypto = $active_cryptos[$crypto];
+
         $context = array(
-            'time_period' => $time_period,
             'order' => $order,
             'order_hash' => $show_order,
-            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $order_amount,
-            'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount),
-            'crypto' => $crypto,
-            'usdt_address' => $this->getUSDTAddress(),
-            'network_type'=> $this->getNetworkType()
+            'crypto' =>  $crypto,
         );
-     
-        $template = $crypto['code'] == "usdt" ? 'web3_checkout' : 'checkout';
+        
+        if($crypto['code'] == "usdt"){
+            $selectedNetwork = $this->getNetworkType();
+            $selectedTokenNetworks = $this->getUSDTNetworkDetails($selectedNetwork);
 
-        $this->load_blockonomics_template($ca, $template, $context);
-
+            $context["chain_id"] = $selectedTokenNetworks["chainId"];
+            $context["contract_address"] = $selectedTokenNetworks["tokens"][$crypto['code']];
+            $context["usdt_address"] = $this->getUSDTAddress();
+            $this->load_blockonomics_template($ca, 'web3_checkout', $context);
+        } else {
+            $time_period_from_db = $this->getTimePeriod();
+            $context["time_period"] = isset($time_period_from_db) ? $time_period_from_db : '10';
+            $context["crypto_rate_str"] = $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency);
+            $context["payment_uri"] = $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount);
+            $this->load_blockonomics_template($ca, 'checkout', $context);
+        }
     }
 
     public function get_order_checkout_params($params)

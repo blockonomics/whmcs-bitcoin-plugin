@@ -9,7 +9,7 @@ class Blockonomics {
     }
 
     usdt = {
-        address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        address: '',
         abi: [
           "function name() view returns (string)",
           "function symbol() view returns (string)",
@@ -59,10 +59,7 @@ class Blockonomics {
         const walletSetupTable = document.getElementById('wallet-setup-table');
         const connectBtn = document.getElementById('connect-wallet');
         const transferForm = document.getElementById('transferForm');
-
-        if (this.data?.network_type === 'Test') {
-            this.usdt.address = '0x419Fe9f14Ff3aA22e46ff1d03a73EdF3b70A62ED';
-        }
+        this.usdt.address = this.data.contract_address;
 
         this.provider = new ethers.providers.Web3Provider(window.ethereum, "any");
 
@@ -86,9 +83,8 @@ class Blockonomics {
             this.connectedAccount = await signer.getAddress();
 
             const network = await this.provider.getNetwork();
-            const desiredNetworkId = this.data.network_type === "Test" ? 11155111 : 1;
 
-            if(network.chainId === desiredNetworkId) {
+            if(network.chainId === Number(this.data.chain_id)) {
                 console.log("Connected to the correct network");
             } else {
                 console.error("Connected to the wrong network");
@@ -113,11 +109,8 @@ class Blockonomics {
             const userAddress = await signer.getAddress();
 
             const network = await this.provider.getNetwork();
-            const desiredNetworkId = this.data.network_type === "Test" ? 11155111 : 1;
-
             document.getElementById("connectResponse").style.display = "none";
-
-            if(network.chainId !== desiredNetworkId) {
+            if(network.chainId !== Number(this.data.chain_id)) {
                 const response = `Please change the wallet network before connecting the wallet`;
                 document.getElementById("connectResponse").innerText = response;
                 document.getElementById("connectResponse").style.display = "block";
@@ -133,11 +126,11 @@ class Blockonomics {
                 const usdtBalance = await this.getBalance(userAddress);
                 document.getElementById("userAmount").innerText = `${this.data.order_amount} USDT`;
 
-                const amount = ethers.utils.parseUnits(this.data.order_amount, 6);
+                const amount = ethers.utils.parseUnits(this.data.order_amount, this.data.crypto.decimals);
 
                 if (usdtBalance.lt(amount)) {
-                    let amountFormatted = ethers.utils.formatUnits(amount, 6);
-                    let balanceFormatted = ethers.utils.formatUnits(usdtBalance, 6);
+                    let amountFormatted = ethers.utils.formatUnits(amount, this.data.crypto.decimals);
+                    let balanceFormatted = ethers.utils.formatUnits(usdtBalance, this.data.crypto.decimals);
                     console.error(
                     `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
                     );

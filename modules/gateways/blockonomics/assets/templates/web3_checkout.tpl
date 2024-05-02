@@ -117,15 +117,12 @@
 
 <script>
 var blockonomics_data = JSON.stringify({
-    time_period: {$time_period},
-    crypto: JSON.parse('{json_encode($crypto)}'),
-    crypto_address: '{$order->addr}',
-    get_order_amount_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?get_order={$order_hash}&crypto={$crypto['code']}',
     finish_order_url: '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}',
-    payment_uri: '{$payment_uri}',
+    contract_address: '{$contract_address}',
     order_amount: '{$order_amount}',
     usdt_receivers_address: '{$usdt_address}',
-    network_type:'{$network_type}',
+    chain_id:'{$chain_id}',
+    crypto: JSON.parse('{json_encode($crypto)}'),
 })
 </script>
 

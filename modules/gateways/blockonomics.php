@@ -407,12 +407,13 @@ HTML;
         'FriendlyName' => $_BLOCKLANG['networkType']['title'],
         'Description' => $_BLOCKLANG['networkType']['description'],
         'Type' => 'dropdown',
-        'Default' => 'Main',
+        'Default' => 'ethereum',
         'Options' => [
-            'Main' => 'Main Ethereum Network',
-            'Test' => 'Sepolia Test Network',
+            'ethereum' => 'Main Ethereum Network',
+            'sepolia' => 'Sepolia Test Network',
         ]
     ];
+
     return $settings_array;
 }
 

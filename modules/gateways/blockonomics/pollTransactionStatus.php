@@ -14,7 +14,7 @@ $gatewayModuleName = 'blockonomics';
 $gatewayParams = getGatewayVariables($gatewayModuleName);
 $apiKey = $blockonomics->getEtherscanApiKey();
 $networkType =  $blockonomics->getNetworkType();
-$subDomain = ($networkType === 'Test') ? 'api-sepolia' : 'api';
+$subDomain = ($networkType === 'sepolia') ? 'api-sepolia' : 'api';
 $domain = 'https://'. $subDomain .'.etherscan.io';
 
 // Log messages for debugging
@@ -65,11 +65,6 @@ function process($order) {
     global $gatewayModuleName;
     
     $txHash = $order->txid;
-    
-    if (empty($order)) {
-        logMessage("Validating","Order not found for transaction: $txHash","Not Found");
-        return;
-    }
 
     $result = fetchTransactionData($txHash);
     $inputData = $result['input'];
@@ -146,11 +141,12 @@ function getPaymentAmount($bits, $tokenAmount, $order) {
 
 do {
     sleep(60); // Wait for 60 seconds
-    $unconfirmedOrders = $blockonomics->getUnconfirmedOrders();
+    $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
     
     if (!$unconfirmedOrders->isEmpty()) {
         foreach ($unconfirmedOrders as $order) {
             pollTransactionStatus($order);
+            sleep(5);
         }
     }
 } while (true);
