@@ -995,24 +995,32 @@ class Blockonomics
     
     public function fix_displaying_small_values($satoshi, $blockonomics_currency)
     {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+
         if ($blockonomics_currency == 'usdt') {
             // For USDT, you usually don't need to display very small fractional values.
             // Assuming $amount is in USDT, and typically 2 decimal places are sufficient.
-            return rtrim(number_format($satoshi/1.0e6, 2, '.', ''));
+            return rtrim(number_format($satoshi/$multiplier, 2, '.', ''));
         }
 
         if ($satoshi < 10000) {
-            return rtrim(number_format($satoshi/1.0e8, 8),0);
+            return rtrim(number_format($satoshi/$multiplier, 8),0);
         }
 
-        return $satoshi/1.0e8;
+        return $satoshi/$multiplier;
     }
 
-    public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currencies) {
+    public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currency) {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+        
         // Crypto Rate is re-calculated here and may slightly differ from the rate provided by Blockonomics
         // This is required to be recalculated as the rate is not stored anywhere in $order, only the converted satoshi amount is.
         // This method also helps in having a constant conversion and formatting for both Initial Load and API Refresh
-        return number_format($value*1.0e8/$satoshi, 2, '.', '');
+        return number_format($value*$multiplier/$satoshi, 2, '.', '');
     }
     
     public function load_checkout_template($ca, $show_order, $crypto)
