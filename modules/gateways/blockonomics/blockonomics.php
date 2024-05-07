@@ -9,6 +9,7 @@ use DateTime;
 use DateInterval;
 
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
+require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 
 class Blockonomics
 {
@@ -120,7 +121,7 @@ class Blockonomics
         ];
     }
 
-    public function getUSDTNetworkDetails($selectedNetwork)
+    public function getTokenNetworkDetails($selectedNetwork)
     {
         $tokenNetworks = array(
             'ethereum' => array(
@@ -245,7 +246,7 @@ class Blockonomics
      * Get network type  from the setting page 
      */
 
-    public function getNetworkType()
+    public function getTokenNetwork()
     {
         $gatewayParams = getGatewayVariables('blockonomics');
         return $gatewayParams['NetworkType'];
@@ -1038,8 +1039,8 @@ class Blockonomics
         );
         
         if($crypto['code'] == "usdt"){
-            $selectedNetwork = $this->getNetworkType();
-            $selectedTokenNetworks = $this->getUSDTNetworkDetails($selectedNetwork);
+            $selectedNetwork = $this->getTokenNetwork();
+            $selectedTokenNetworks = $this->getTokenNetworkDetails($selectedNetwork);
 
             $context["chain_id"] = $selectedTokenNetworks["chainId"];
             $context["contract_address"] = $selectedTokenNetworks["tokens"][$crypto['code']];
@@ -1090,5 +1091,36 @@ class Blockonomics
             exec($startCommand, $startOutput, $startReturnVar);
             echo "The job was not running and has been started.\n";
         }
+    }
+
+    function process_token_order($finish_order, $crypto, $txid) {
+        include $this->getLangFilePath();
+
+        $order = $this->processOrderHash($finish_order, $crypto);
+
+        if (empty($order)) {
+            return;
+        }
+
+        $transactionExists = $this->blockonomicsTransactionExists($txid);
+
+        if ($transactionExists) {
+            return;
+        }
+
+        $invoiceId = $order->id_order;
+        $usdt_recieving_address = $this->getUSDTAddress();
+        $new_address = $usdt_recieving_address . '-' . $invoiceId;
+        
+        $subdomain = $this->getTokenNetwork() === "sepolia" ? "sepolia" : "www";
+
+        $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
+
+        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency->name . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
+        $blockonomics_currency->name . " transaction id:\r" .
+            '<a target="_blank" href="https://' . $subdomain . ".etherscan.io/tx/$txid\">$txid</a>";
+
+        $this->updateOrderInDb($new_address, $txid, 0, 0);
+        $this->updateInvoiceNote($invoiceId, $invoiceNote);
     }
 }

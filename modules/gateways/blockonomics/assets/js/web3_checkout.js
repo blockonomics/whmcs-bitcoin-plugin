@@ -135,7 +135,6 @@ class Blockonomics {
                 walletInfoTable.style.display = 'none';
             }
         } catch (e) {
-            console.log(e);
             walletSetupTable.style.display = 'table';
             walletInfoTable.style.display = 'none';
         }
@@ -167,7 +166,7 @@ class Blockonomics {
         }
 
         try {
-            amount = ethers.utils.parseUnits(amount, 6);
+            amount = ethers.utils.parseUnits(amount, this.data.crypto.decimals);
             if (amount.isNegative()) {
               throw new Error();
             }
@@ -183,8 +182,8 @@ class Blockonomics {
         const balance = await usdtContract.balanceOf(userAddress);
 
         if (balance.lt(amount)) {
-            let amountFormatted = ethers.utils.formatUnits(amount, 6);
-            let balanceFormatted = ethers.utils.formatUnits(balance, 6);
+            let amountFormatted = ethers.utils.formatUnits(amount, this.data.crypto.decimals);
+            let balanceFormatted = ethers.utils.formatUnits(balance, this.data.crypto.decimals);
             console.error(
               `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
             );
@@ -195,7 +194,7 @@ class Blockonomics {
             return;
         }
 
-        let amountFormatted = ethers.utils.formatUnits(amount, 6);
+        let amountFormatted = ethers.utils.formatUnits(amount, this.data.crypto.decimals);
 
         response = `Transferring ${amountFormatted} usdt receiver ${receiver.slice(
             0,
@@ -208,16 +207,12 @@ class Blockonomics {
         const gasPrice = await this.provider.getGasPrice();
     
         const tx = await usdtContract.transfer(receiver, amount, { gasPrice });
-        document.getElementById(
-        "transferResponse"
-        ).innerText += `Transaction hash: ${tx.hash}`;
 
         const result = {
             txn: tx.hash,
             crypto: 'usdt'
         };
 
-        console.log({tx});
 
         this.redirect_to_finish_order(result);
     }

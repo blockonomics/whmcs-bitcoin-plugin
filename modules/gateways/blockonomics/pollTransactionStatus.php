@@ -13,7 +13,7 @@ $blockonomics = new Blockonomics();
 $gatewayModuleName = 'blockonomics';
 $gatewayParams = getGatewayVariables($gatewayModuleName);
 $apiKey = $blockonomics->getEtherscanApiKey();
-$networkType =  $blockonomics->getNetworkType();
+$networkType =  $blockonomics->getTokenNetwork();
 $subDomain = ($networkType === 'sepolia') ? 'api-sepolia' : 'api';
 $domain = 'https://'. $subDomain .'.etherscan.io';
 
@@ -45,7 +45,7 @@ function pollTransactionStatus($order) {
     $response = performCurlRequest($url);
     $data = json_decode($response, true);
 
-    if ($data['message'] === "NOTOK") {
+    if ($data['message'] === "NOTOK" || $data['status'] === "0") {
         logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
         return;
     }
@@ -92,6 +92,8 @@ function process($order) {
         logMessage("Validating","Checking whether transaction already exists  or not in the order: $blockonomics_currency_code  - $txid","Transaction already exsist $txid");
         return;
     }
+    
+    logMessage("Sucessful", "The transaction has been successful $blockonomics_currency_code  - $txid", "Transaction $txid");
 
     $paymentAmount = getPaymentAmount($order->bits, $tokenAmount, $order);
     $paymentFee = 0;
@@ -146,7 +148,7 @@ do {
     if (!$unconfirmedOrders->isEmpty()) {
         foreach ($unconfirmedOrders as $order) {
             pollTransactionStatus($order);
-            sleep(5);
+            sleep(1);
         }
     }
 } while (true);

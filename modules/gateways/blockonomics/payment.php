@@ -2,7 +2,6 @@
 
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/blockonomics.php';
-require_once __DIR__ . '/usdtblockonomics.php';
 
 use Blockonomics\Blockonomics;
 use WHMCS\ClientArea;
@@ -31,9 +30,6 @@ $show_order = isset($_GET["show_order"]) ? htmlspecialchars($_GET['show_order'])
 $crypto = isset($_GET["crypto"]) ? htmlspecialchars($_GET['crypto']) : "";
 $select_crypto = isset($_GET["select_crypto"]) ? htmlspecialchars($_GET['select_crypto']) : "";
 $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_order']) : "";
-$from = isset($_GET["from"]) ? htmlspecialchars($_GET['from']) : "";
-$txn = isset($_GET["txn"]) ? htmlspecialchars($_GET['txn']) : "";
-$status = isset($_GET["status"]) ? htmlspecialchars($_GET['status']) : "";
 $get_order = isset($_GET['get_order']) ? htmlspecialchars($_GET['get_order']) : "";
 
 if($crypto === "empty"){
@@ -47,7 +43,7 @@ if($crypto === "empty"){
     ));
 }else if ($finish_order) {
     if ($crypto == "usdt"){
-        process_finish_order($finish_order, $crypto, $txn); 
+        $blockonomics->process_token_order($finish_order, $crypto, $txn); 
     }
     $blockonomics->redirect_finish_order($finish_order);
 }else if ($get_order && $crypto) {
