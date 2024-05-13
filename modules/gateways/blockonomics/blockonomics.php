@@ -1089,7 +1089,6 @@ class Blockonomics
         if (empty($output)) {
             $startCommand = "php $path > /dev/null &";
             exec($startCommand, $startOutput, $startReturnVar);
-            echo "The job was not running and has been started.\n";
         }
     }
 

@@ -68,11 +68,20 @@ function process($order) {
 
     $result = fetchTransactionData($txHash);
     $inputData = $result['input'];
+    $toAddress = $result['to'];
+    $selectedNetwork = $blockonomics->getTokenNetwork();
+    $selectedTokenNetworks = $blockonomics->getTokenNetworkDetails($selectedNetwork);
+    $contract_address = $selectedTokenNetworks["tokens"]["usdt"];
 
     if (!(substr($inputData, 0, 10) === '0xa9059cbb')) {
         logMessage("Validating","Identify whether the ERC20 transaction ","Transcation not of type is not an ERC20 token transfer.: $txHash");
         return;
     }
+    
+    if(strtolower($toAddress) != strtolower($contract_address)){
+        logMessage("Validating","Check contract address","Transaction $txHash 'to' address does not match the expected token contract address: $contract_address");
+        return;
+    } 
 
     if (!isValidTransaction($inputData)) {
         logMessage("Validating","To check whether the address  match for transaction: $txHash","Transaction didn't match");

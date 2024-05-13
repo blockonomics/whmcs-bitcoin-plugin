@@ -11,9 +11,6 @@ class Blockonomics {
     usdt = {
         address: '',
         abi: [
-          "function name() view returns (string)",
-          "function symbol() view returns (string)",
-          "function gimmeSome() external",
           "function balanceOf(address _owner) public view returns (uint256 balance)",
           "function transfer(address _to, uint256 _value) public returns (bool success)",
         ],
@@ -56,7 +53,6 @@ class Blockonomics {
     }
 
     async wallet() {
-        const walletSetupTable = document.getElementById('wallet-setup-table');
         const connectBtn = document.getElementById('connect-wallet');
         const transferForm = document.getElementById('transferForm');
         this.usdt.address = this.data.contract_address;
@@ -120,13 +116,9 @@ class Blockonomics {
                 const amount = ethers.utils.parseUnits(this.data.order_amount, this.data.crypto.decimals);
 
                 if (usdtBalance.lt(amount)) {
-                    let amountFormatted = ethers.utils.formatUnits(amount, this.data.crypto.decimals);
                     let balanceFormatted = ethers.utils.formatUnits(usdtBalance, this.data.crypto.decimals);
-                    console.error(
-                    `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
-                    );
-                
-                    const response = `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`;
+                   
+                    const response = `Insufficient balance. You have: ${balanceFormatted} USDT`;
                     document.getElementById("transferResponse").innerText = response;
                     document.getElementById("transferResponse").style.display = "block";
                 }
@@ -171,7 +163,7 @@ class Blockonomics {
               throw new Error();
             }
         } catch {
-            console.error(`Invalid amount: ${amount}`);
+            
             response = `Invalid amount: ${amount}`;
             document.getElementById("transferResponse").innerText = response;
             document.getElementById("transferResponse").style.display = "block";
@@ -182,13 +174,9 @@ class Blockonomics {
         const balance = await usdtContract.balanceOf(userAddress);
 
         if (balance.lt(amount)) {
-            let amountFormatted = ethers.utils.formatUnits(amount, this.data.crypto.decimals);
             let balanceFormatted = ethers.utils.formatUnits(balance, this.data.crypto.decimals);
-            console.error(
-              `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`
-            );
-        
-            response = `Insufficient balance receiver send ${amountFormatted} (You have ${balanceFormatted})`;
+         
+            response = `Insufficient balance. You have: ${balanceFormatted} USDT`;
             document.getElementById("transferResponse").innerText = response;
             document.getElementById("transferResponse").style.display = "block";
             return;

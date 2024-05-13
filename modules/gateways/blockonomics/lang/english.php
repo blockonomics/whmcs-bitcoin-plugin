@@ -40,7 +40,7 @@ $_BLOCKLANG['version']['title'] = 'Version';
 $_BLOCKLANG['apiKey']['title'] = 'API Key';
 $_BLOCKLANG['apiKey']['description'] = 'To get your API Key, click <b>Get Started for Free</b> on <a target="_blank" href="https://blockonomics.co/merchants">https://blockonomics.co/merchants</a>';
 $_BLOCKLANG['usdtAddress']['title'] = 'USDT Payment Address';
-$_BLOCKLANG['usdtAddress']['description'] = 'ETH address to receive address USDT payments';
+$_BLOCKLANG['usdtAddress']['description'] = 'ETH address to receive USDT payments';
 $_BLOCKLANG['etherScanAPI']['title'] = 'Etherscan API key';
 $_BLOCKLANG['etherScanAPI']['description'] = 'To get your Etherscan API key.<a target="_blank" href="https://docs.etherscan.io/getting-started/viewing-api-usage-statistics">Sign Up for free</a>';
 $_BLOCKLANG['networkType']['title'] = 'Network Type';
@@ -48,7 +48,7 @@ $_BLOCKLANG['networkType']['description'] = 'Select the network to test or run t
 $_BLOCKLANG['enabled']['title'] = 'Enabled';
 $_BLOCKLANG['enabled']['btc_description'] = 'To configure click <b>Get Started for Free</b> on <a target="_blank" href="https://blockonomics.co/merchants">https://blockonomics.co/merchants</a>';
 $_BLOCKLANG['enabled']['bch_description'] = 'To configure click <b>Get Started for Free</b> on <a target="_blank" href="https://bch.blockonomics.co/merchants">https://bch.blockonomics.co/merchants</a>';
-$_BLOCKLANG['enabled']['usdt_description'] = 'To configure click <b>Get Started for Free</b> on <a target="_blank" href="https://blockonomics.co/merchants">https://blockonomics.co/merchants</a>';
+$_BLOCKLANG['enabled']['usdt_description'] = 'To configure refer to the <a target="_blank" href="https://blockonomics.co/merchants">USDT Setup Instructions</a>';
 $_BLOCKLANG['callbackSecret']['title'] = 'Callback Secret';
 $_BLOCKLANG['callbackUrl']['title'] = 'Callback URL';
 $_BLOCKLANG['AvancedSettings']['title'] = 'Advanced Settings ▼';
