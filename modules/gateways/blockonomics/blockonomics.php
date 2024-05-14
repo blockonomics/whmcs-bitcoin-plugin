@@ -1085,6 +1085,19 @@ class Blockonomics
         // Command to check if the specific PHP script is running
         $checkCommand = "pgrep -f 'php $path'";
         exec($checkCommand, $output, $return_var);
+        $disabled_functions = ini_get('disable_functions');  
+        
+        if (($return_var != 0) || (strpos($disabled_functions, 'exec') !== false)){
+            if (function_exists('logModuleCall')) {
+                logModuleCall(
+                    "Blockonomics",
+                    "Validation",
+                    "To check Exec working or not",
+                    "The background job does not work or is disabled. Please check the server configuration"
+                );
+            }
+            return;
+        }
 
         if (empty($output)) {
             $startCommand = "php $path > /dev/null &";
