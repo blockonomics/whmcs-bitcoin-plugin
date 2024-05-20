@@ -1080,14 +1080,9 @@ class Blockonomics
     }
 
     public function start_polling_job() {
-        $path = __DIR__ . '/pollTransactionStatus.php';
-
-        // Command to check if the specific PHP script is running
-        $checkCommand = "pgrep -f 'php $path'";
-        exec($checkCommand, $output, $return_var);
         $disabled_functions = ini_get('disable_functions');  
         
-        if (($return_var != 0) || (strpos($disabled_functions, 'exec') !== false)){
+        if (strpos($disabled_functions, 'exec') !== false) {
             if (function_exists('logModuleCall')) {
                 logModuleCall(
                     "Blockonomics",
@@ -1098,6 +1093,12 @@ class Blockonomics
             }
             return;
         }
+
+        $path = __DIR__ . '/pollTransactionStatus.php';
+
+        // Command to check if the specific PHP script is running
+        $checkCommand = "pgrep -f 'php $path'";
+        exec($checkCommand, $output, $return_var);
 
         if (empty($output)) {
             $startCommand = "php $path > /dev/null &";
