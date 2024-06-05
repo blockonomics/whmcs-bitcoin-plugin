@@ -1097,10 +1097,22 @@ class Blockonomics
         $path = __DIR__ . '/pollTransactionStatus.php';
 
         // Command to check if the specific PHP script is running
-        $checkCommand = "pgrep -f 'php $path'";
-        exec($checkCommand, $output, $return_var);
+        $checkCommand = "ps aux | grep $path";
+        $output = [];
+        exec($checkCommand, $output);
+        $isRunning = count($output) > 2;
 
-        if (empty($output)) {
+         //$checkCommand = "pgrep -f 'php $path'";
+        // $output = [];
+        // exec($checkCommand, $output, $return_var);
+
+        // $pid = (int)$output[0];
+        // $command = "ps -p $pid";
+        // $output = [];
+        // exec($command, $output);
+        // $isRunning = count($output) > 1;
+
+        if ($isRunning) {
             $startCommand = "php $path > /dev/null &";
             exec($startCommand, $startOutput, $startReturnVar);
         }
