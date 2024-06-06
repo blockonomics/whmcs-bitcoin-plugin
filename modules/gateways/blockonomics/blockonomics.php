@@ -1081,6 +1081,13 @@ class Blockonomics
 
     public function start_polling_job() {
         $disabled_functions = ini_get('disable_functions');  
+        $active_cryptos = $this->getActiveCurrencies();
+
+        if (!isset($active_cryptos['usdt'])) {
+            return;
+        }
+
+        $disabled_functions = ini_get('disable_functions');
         
         if (strpos($disabled_functions, 'exec') !== false) {
             if (function_exists('logModuleCall')) {
@@ -1102,17 +1109,7 @@ class Blockonomics
         exec($checkCommand, $output);
         $isRunning = count($output) > 2;
 
-         //$checkCommand = "pgrep -f 'php $path'";
-        // $output = [];
-        // exec($checkCommand, $output, $return_var);
-
-        // $pid = (int)$output[0];
-        // $command = "ps -p $pid";
-        // $output = [];
-        // exec($command, $output);
-        // $isRunning = count($output) > 1;
-
-        if ($isRunning) {
+        if (!$isRunning) {
             $startCommand = "php $path > /dev/null &";
             exec($startCommand, $startOutput, $startReturnVar);
         }
