@@ -1080,7 +1080,6 @@ class Blockonomics
     }
 
     public function start_polling_job() {
-        $disabled_functions = ini_get('disable_functions');  
         $active_cryptos = $this->getActiveCurrencies();
 
         if (!isset($active_cryptos['usdt'])) {
