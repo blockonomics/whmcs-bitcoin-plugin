@@ -150,6 +150,9 @@ svg {
 .bnomics-icon-btc:before {
   content: "\e901";
 }
+.bnomics-icon-usdt:before {
+  content: "\e902";
+}
 
 .bnomics-select-options {
   cursor:pointer;
@@ -339,13 +342,13 @@ svg {
   margin-right: auto;
 }
 
-.bnomics-copy-container {
+.bnomics-copy-container, .bnomics-checkout-container {
   display:flex;
   align-items: center;
   position: relative;
 }
 
-.bnomics-copy-container input {
+.bnomics-copy-container input, .bnomics-checkout-container input {
   flex-grow: 1;
 }
 

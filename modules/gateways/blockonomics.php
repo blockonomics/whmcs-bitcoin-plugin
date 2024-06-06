@@ -78,7 +78,7 @@ function blockonomics_config()
 				element.max = 10;
 				element.step = 0.01;
 			});
-
+            
 			/**
 			 * Generate Settings and Currency Headers
 			 */
@@ -393,6 +393,27 @@ HTML;
             $settings_array[$code . 'Enabled']['Default'] = true;
         }
     }
+    $settings_array['UsdtAddress'] = [
+        'FriendlyName' => $_BLOCKLANG['usdtAddress']['title'],
+        'Description' => $_BLOCKLANG['usdtAddress']['description'],
+        'Type' => 'text',
+    ];
+    $settings_array['EtherScanAPIKey'] = [
+        'FriendlyName' => $_BLOCKLANG['etherScanAPI']['title'],
+        'Description' => $_BLOCKLANG['etherScanAPI']['description'],
+        'Type' => 'text',
+    ];
+    $settings_array['NetworkType'] = [
+        'FriendlyName' => $_BLOCKLANG['networkType']['title'],
+        'Description' => $_BLOCKLANG['networkType']['description'],
+        'Type' => 'dropdown',
+        'Default' => 'ethereum',
+        'Options' => [
+            'ethereum' => 'Main Ethereum Network',
+            'sepolia' => 'Sepolia Test Network',
+        ]
+    ];
+
     return $settings_array;
 }
 
