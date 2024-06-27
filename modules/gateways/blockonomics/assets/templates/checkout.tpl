@@ -93,4 +93,4 @@ var blockonomics_data = JSON.stringify({
 
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js "></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js"></script>
