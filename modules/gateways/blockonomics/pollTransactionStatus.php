@@ -151,25 +151,18 @@ function getPaymentAmount($bits, $tokenAmount, $order) {
 
 
 do {
-    // Get the server's max execution time
-    $max_execution_time = ini_get('max_execution_time');
-    
-    // If max_execution_time is 0 (unlimited) or greater than 30, use 20 seconds
-    // Otherwise, use half of the max_execution_time, but not less than 10 seconds
-    $sleep_time = ($max_execution_time == 0 || $max_execution_time > 30) ? 20 : max(10, $max_execution_time / 2);
-    
-    sleep($sleep_time);
-    
-    // Log the sleep time for debugging
-    logMessage("Sleep Time", "Server max execution time: $max_execution_time", "Actual sleep time: $sleep_time");
-    $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
-    
-    if (!$unconfirmedOrders->isEmpty()) {
-        foreach ($unconfirmedOrders as $order) {
-            pollTransactionStatus($order);
-            // Use a shorter sleep time between processing each order
-            $order_sleep_time = min(1, $sleep_time / 10);
-            sleep($order_sleep_time);
+    try {        
+        logMessage("Polling", "Starting to poll", "true");
+        sleep(1);
+        $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
+        
+        if (!$unconfirmedOrders->isEmpty()) {
+            foreach ($unconfirmedOrders as $order) {
+                pollTransactionStatus($order);
+                sleep(1);
+            }
         }
+    } catch (Exception $e) {
+        logMessage("Error", "An error occurred during polling transaction status", $e->getMessage());
     }
 } while (true);
