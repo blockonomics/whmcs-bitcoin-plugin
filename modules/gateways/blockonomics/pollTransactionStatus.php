@@ -152,7 +152,6 @@ function getPaymentAmount($bits, $tokenAmount, $order) {
 
 do {
     try {        
-        logMessage("Polling", "Starting to poll", "true");
         sleep(1);
         $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
         
