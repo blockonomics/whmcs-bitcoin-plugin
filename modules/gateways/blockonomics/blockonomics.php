@@ -1086,9 +1086,7 @@ class Blockonomics
             return;
         }
 
-        $disabled_functions = ini_get('disable_functions');
-        
-        if (strpos($disabled_functions, 'exec') !== false) {
+        if (!function_exists('exec')) {
             if (function_exists('logModuleCall')) {
                 logModuleCall(
                     "Blockonomics",

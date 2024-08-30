@@ -35,23 +35,14 @@ function performCurlRequest($url) {
 
 // Main function to poll transaction status
 function pollTransactionStatus($order) {
-    global $apiKey, $domain;
-    
     $txHash = $order->txid;
-    $url = "$domain/api?module=transaction&action=getstatus&txhash=$txHash&apikey=$apiKey";
+    $result = fetchTransactionData($txHash);
 
-    logMessage("Polling ","Request sent to etherscan server started for transaction: $txHash ","Start");
-    
-    $response = performCurlRequest($url);
-    $data = json_decode($response, true);
-
-    if ($data['message'] === "NOTOK" || $data['status'] === "0") {
-        logMessage("Polling","Requested Transaction $txHash failed.",$data['message']);
+    if ( $result['blockHash'] == null ||  $result['blockNumber'] == null) {
+        logMessage("Polling","Requested Transaction is still pending /failed and  $txHash failed.",$result['transactionIndex']);
         return;
-    }
-
-    if ($data['status'] === "1") {
-        process($order);
+    } else {
+        process($order, $result);
         logMessage("Polling", " Requested Transaction $txHash to check whether it is completed successfully or not.", "Completed");
         return;
     }
@@ -59,14 +50,13 @@ function pollTransactionStatus($order) {
     logMessage("Polling","Request checks whether transaction ended: $txHash","Ended");
 }
 
-function process($order) {
+function process($order, $result) {
     global $blockonomics;
     global $gatewayParams;
     global $gatewayModuleName;
     
     $txHash = $order->txid;
-
-    $result = fetchTransactionData($txHash);
+    
     $inputData = $result['input'];
     $toAddress = $result['to'];
     $selectedNetwork = $blockonomics->getTokenNetwork();
@@ -151,13 +141,17 @@ function getPaymentAmount($bits, $tokenAmount, $order) {
 
 
 do {
-    sleep(60); // Wait for 60 seconds
-    $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
-    
-    if (!$unconfirmedOrders->isEmpty()) {
-        foreach ($unconfirmedOrders as $order) {
-            pollTransactionStatus($order);
-            sleep(1);
+    try {        
+        sleep(1);
+        $unconfirmedOrders = $blockonomics->getUnconfirmedUSDTOrders();
+        
+        if (!$unconfirmedOrders->isEmpty()) {
+            foreach ($unconfirmedOrders as $order) {
+                pollTransactionStatus($order);
+                sleep(1);
+            }
         }
+    } catch (Exception $e) {
+        logMessage("Error", "An error occurred during polling transaction status", $e->getMessage());
     }
 } while (true);
