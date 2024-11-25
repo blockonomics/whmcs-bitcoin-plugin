@@ -128,6 +128,12 @@ function blockonomics_config()
             advancedSettingsFieldArea.appendChild(advancedLink);
 
             let showingAdvancedSettings = false;
+            /**
+ * Get store name from Blockonomics API using API key and callback URL
+ * 
+ * @return string Store name or empty string if error
+ */
+        
 			advancedLink.onclick = function() {
                 advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
                 if (showingAdvancedSettings) {
@@ -156,13 +162,18 @@ function blockonomics_config()
 			 */
             const saveButtonCell = blockonomicsTable.rows[ blockonomicsTable.rows.length - 1 ].children[1];
             saveButtonCell.style.backgroundColor = "white";
+            const storeNameRow = blockonomicsTable.rows[5]; // Row after store name field
+            const newRow = blockonomicsTable.insertRow(6);
+            const labelCell = newRow.insertCell(0);
+            const buttonCell = newRow.insertCell(1);
+            buttonCell.style.backgroundColor = "white";
 
             const newBtn = document.createElement('BUTTON');
             newBtn.setAttribute('type', 'button');
             newBtn.className = "btn btn-primary";
             newBtn.textContent = "Test Setup";
 
-            saveButtonCell.appendChild(newBtn);
+            buttonCell.appendChild(newBtn);
 
             function reqListener (response, cells) {
 				var responseObj = {};
@@ -238,13 +249,10 @@ function blockonomics_config()
 
             function doTest() {
                 const form = new FormData(saveButtonCell.closest('form'))
-                let activeCryptos = [];
-
-                if(form.getAll('field[btcEnabled]').includes('on'))
-                    activeCryptos.push('btc');
+                let activeCryptos = ['btc'];
                 
-                if(form.getAll('field[bchEnabled]').includes('on'))
-                    activeCryptos.push('bch');
+                // if(form.getAll('field[bchEnabled]').includes('on'))
+                    // activeCryptos.push('bch');
 
                 let CELLS = {};
                 
@@ -312,6 +320,54 @@ function blockonomics_config()
                 doTest()
             }
 
+            /**
+             * Check API key and update store name
+             */
+            const apiKeyInput = document.getElementsByName('field[ApiKey]')[0];
+            const storeNameField = document.getElementsByClassName('store-name-description')[0];
+
+            function updateStoreName() {
+                if (!apiKeyInput.value) {
+                    storeNameField.innerHTML = 'Enter API key to fetch store name';
+                    return;
+                }
+
+                const apiKey = apiKeyInput.value;
+                const callbackUrl = document.getElementsByName('field[CallbackURL]')[0].value;
+                
+                // Use local proxy to avoid CORS issues
+                var storesetupUrl = "$system_url" + "modules/gateways/blockonomics/storesetup.php";
+                fetch(storesetupUrl + '?api_key=' + encodeURIComponent(apiKey))
+                .then(response => response.json())
+                .then(response => {
+                    if (!response.data || response.data.length === 0) {
+                        storeNameField.innerHTML = 'No stores found for this API key';
+                        return;
+                    }
+
+                    // Find store matching callback URL
+                    const matchingStore = response.data.find(store => {
+                        // Remove protocol for comparison
+                        const storeCallback = store.http_callback?.replace(/^https?:\/\//, '');
+                        const currentCallback = callbackUrl.replace(/^https?:\/\//, '');
+                        return storeCallback && storeCallback.startsWith(currentCallback);
+                    });
+
+                    if (matchingStore) {
+                        storeNameField.innerHTML = matchingStore.name;
+                    } else {
+                        storeNameField.innerHTML = 'No matching store found for this callback URL';
+                    }
+                })
+                .catch(error => {
+                    storeNameField.innerHTML = 'Error fetching store information';
+                    console.error('Store fetch error:', error);
+                });
+            }
+
+            // Check on page load
+            updateStoreName();
+
 		</script>
 HTML;
         }
@@ -336,6 +392,11 @@ HTML;
         'Description' => $_BLOCKLANG['apiKey']['description'],
         'Type' => 'text',
     ];
+    $settings_array['StoreName'] = [
+        'FriendlyName' => 'Store Name',
+        'Description' => '<span class="store-name-description">sdsd</span>',
+    ];
+
 
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],
