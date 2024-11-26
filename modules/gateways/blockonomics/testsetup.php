@@ -6,7 +6,12 @@ require_once __DIR__ . '/blockonomics.php';
 use Blockonomics\Blockonomics;
 
 $blockonomics = new Blockonomics();
-$blockonomics->checkAdmin();
+// $blockonomics->checkAdmin();
 
-$error = $blockonomics->testSetup();
+// Allow CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+$error = $blockonomics->checkStoreSetup();
 echo json_encode($error);

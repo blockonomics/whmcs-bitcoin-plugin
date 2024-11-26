@@ -207,6 +207,9 @@ function blockonomics_config()
 			}
 
             function handle_ajax_save(res, xhr, settings){
+                // Update store name
+                updateStoreName();
+
                 if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
                     // We detected the Blockonomics Request
 
@@ -247,7 +250,7 @@ function blockonomics_config()
                 return testSetupResultCell;
             }
 
-            function doTest() {
+            function doTest() {                
                 const form = new FormData(saveButtonCell.closest('form'))
                 let activeCryptos = ['btc'];
                 
@@ -332,41 +335,46 @@ function blockonomics_config()
                     return;
                 }
 
-                const apiKey = apiKeyInput.value;
-                const callbackUrl = document.getElementsByName('field[CallbackURL]')[0].value;
-                
+                // Show loading message
+                storeNameField.innerHTML = 'Loading store name...';
+
                 // Use local proxy to avoid CORS issues
                 var storesetupUrl = "$system_url" + "modules/gateways/blockonomics/storesetup.php";
-                fetch(storesetupUrl + '?api_key=' + encodeURIComponent(apiKey))
-                .then(response => response.json())
-                .then(response => {
-                    if (!response.data || response.data.length === 0) {
-                        storeNameField.innerHTML = 'No stores found for this API key';
-                        return;
-                    }
+                fetch(storesetupUrl)
+                    .then(response => response.json())
+                    .then(response => {
+                        if (response.needs_store) {
+                            storeNameField.innerHTML = 'No stores found for this API key';
+                            return;
+                        }
 
-                    // Find store matching callback URL
-                    const matchingStore = response.data.find(store => {
-                        // Remove protocol for comparison
-                        const storeCallback = store.http_callback?.replace(/^https?:\/\//, '');
-                        const currentCallback = callbackUrl.replace(/^https?:\/\//, '');
-                        return storeCallback && storeCallback.startsWith(currentCallback);
+                        if (response.success && response.store_name) {
+                            storeNameField.innerHTML = response.store_name;
+                        } else {
+                            storeNameField.innerHTML = 'No matching store found for this callback URL';
+                        }
+                    })
+                    .catch(error => {
+                        storeNameField.innerHTML = 'Error fetching store information';
+                        console.error('Store fetch error:', error);
                     });
-
-                    if (matchingStore) {
-                        storeNameField.innerHTML = matchingStore.name;
-                    } else {
-                        storeNameField.innerHTML = 'No matching store found for this callback URL';
-                    }
-                })
-                .catch(error => {
-                    storeNameField.innerHTML = 'Error fetching store information';
-                    console.error('Store fetch error:', error);
-                });
             }
 
-            // Check on page load
             updateStoreName();
+
+            // Update store name
+            if(typeof jQuery != 'undefined') {
+                jQuery(document).on('ajaxComplete', updateStoreName)
+            }
+            // Add onblur event listener
+            apiKeyInput.addEventListener('blur', () => {
+                // Submit the form
+                if(saveButtonCell.querySelector('button[type=submit]')){
+                    saveButtonCell.querySelector('button[type=submit]').click();
+                } else {
+                    saveButtonCell.querySelector('input[type=submit]').click();
+                }
+            });
 
 		</script>
 HTML;
@@ -394,7 +402,7 @@ HTML;
     ];
     $settings_array['StoreName'] = [
         'FriendlyName' => 'Store Name',
-        'Description' => '<span class="store-name-description">sdsd</span>',
+        'Description' => '<span class="store-name-description">Enter API key to fetch store name</span>',
     ];
 
 

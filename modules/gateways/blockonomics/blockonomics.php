@@ -949,4 +949,73 @@ class Blockonomics
 
         return $order_params;
     }
+
+    /*
+     * Get store setup from Blockonomics API
+     */
+    public function getStoreSetup() 
+    {
+        $api_key = $this->getApiKey();
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'https://www.blockonomics.co/api/v2/stores?wallets=true');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . trim($api_key),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        // Check for cURL errors
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            http_response_code(500);
+            return json_encode(['error' => 'cURL Error: ' . $error]);
+        }
+
+        curl_close($ch);
+
+        // Handle response based on status code
+        if ($http_code === 401) {
+            http_response_code(401);
+            return json_encode(['error' => 'Invalid API key or unauthorized access']);
+        } elseif ($http_code !== 200) {
+            http_response_code($http_code);
+            return json_encode(['error' => 'Blockonomics API error', 'status' => $http_code, 'response' => $response]);
+        }
+
+        return $response;
+    }
+
+    public function checkStoreSetup()
+    {
+        $response = json_decode($this->getStoreSetup());
+        
+        // Check if we got a valid response with stores data
+        if (!isset($response->data) || empty($response->data)) {
+            return array('needs_store' => true);
+        }
+
+        $secret = $this->getCallbackSecret();
+        $callback_url = $this->getCallbackUrl($secret);
+
+        foreach ($response->data as $store) {
+            if ($store->http_callback === $callback_url) {
+                return array(
+                    'success' => true,
+                    'store_name' => $store->name
+                );
+            }
+        }
+
+        // No matching store found
+        return array('needs_store' => true);
+    }
 }
