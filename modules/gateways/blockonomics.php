@@ -175,37 +175,6 @@ function blockonomics_config()
 
             buttonCell.appendChild(newBtn);
 
-            function reqListener (response, cells) {
-				var responseObj = {};
-                
-				try {
-					responseObj = JSON.parse(response);
-				} catch (err) {
-					var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
-					responseObj = {};
-                    Object.keys(cells).forEach(crypto => {
-					    responseObj[crypto] = '$trans_text_system_url_error ' + testSetupUrl + '. $trans_text_system_url_fix';
-                    });
-				}
-
-				if (Object.keys(responseObj).length) {
-                    Object.keys(cells).forEach(crypto => {
-                        let e = responseObj[crypto]
-                        if (e) {
-                            cells[crypto].innerHTML = "<label style='color:red;'>Error:</label> " + e +
-					"<br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>";
-                        } else {
-                            cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";    
-                        }
-                    })
-				} else {
-                    Object.keys(cells).forEach(crypto => {
-                        cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";
-                    })
-				}
-				newBtn.disabled = false;
-			}
-
             function handle_ajax_save(res, xhr, settings){
                 // Update store name
                 updateStoreName();
@@ -250,22 +219,21 @@ function blockonomics_config()
                 return testSetupResultCell;
             }
 
-            function doTest() {                
+            function doTest() {
                 const form = new FormData(saveButtonCell.closest('form'))
                 let activeCryptos = ['btc'];
                 
-                // if(form.getAll('field[bchEnabled]').includes('on'))
-                    // activeCryptos.push('bch');
+                // Remove any existing response div
+                const existingResponse = document.getElementById('blockonomics-test-response');
+                if (existingResponse) {
+                    existingResponse.remove();
+                }
 
-                let CELLS = {};
-                
-                // Fix for AJAX based Submission, removes previous elements before adding new
-                document.querySelectorAll('.blockonomics-test-row').forEach(el => el.remove());
-
-                activeCryptos.forEach(crypto => {
-                    rowFromBottom = (crypto === 'btc') ? 3 : 2
-                    CELLS[crypto] = addTestResultRow (rowFromBottom);
-                })
+                // Create new response div below the test button
+                const responseDiv = document.createElement('div');
+                responseDiv.id = 'blockonomics-test-response';
+                responseDiv.style.marginTop = '10px';
+                buttonCell.appendChild(responseDiv);
 
                 var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
 
@@ -276,46 +244,45 @@ function blockonomics_config()
                 }
 
                 if (systemUrlProtocol != location.protocol) {
-                    Object.keys(CELLS).forEach(crypto => {
-                        let cell = CELLS[crypto]
-                        cell.innerHTML = "<label style='color:red;'>$trans_text_protocol_error</label> \
-                            $trans_text_protocol_fix";
-                    })
+                    responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label> 
+                        $trans_text_protocol_fix`;
                 } else {
-
                     let oReq = new XMLHttpRequest();
                     oReq.addEventListener("load", function() {
                         if(this.status != 200) {
-                            let status_code = this.status
-                            let status_msg = this.statusText
-
-                            let response = {}
-                            Object.keys(CELLS).forEach(crypto => {
-                                response[crypto] = "An Error Occurred. Status Code: " + status_code + " (" + status_msg + ")"
-                            })
-                            reqListener(JSON.stringify(response), CELLS)
+                            let status_code = this.status;
+                            let status_msg = this.statusText;
+                            responseDiv.innerHTML = `<label style='color:red;'>Error:</label> An Error Occurred. Status Code: ${status_code} (${status_msg})
+                                <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
                         } else {
-                            reqListener(this.responseText, CELLS)
+                            try {
+                                const response = JSON.parse(this.responseText);
+                                if (Object.keys(response).length && response.btc) {
+                                    responseDiv.innerHTML = `<label style='color:red;'>Error:</label> ${response.btc}
+                                        <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                                } else {
+                                    responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
+                                }
+                            } catch (err) {
+                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
+                                    <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                            }
                         }
+                        newBtn.disabled = false;
                     });
+
                     oReq.addEventListener("error", function(error) {
-                        let response = {}
-                        Object.keys(CELLS).forEach(crypto => {
-                            response[crypto] = "Network Error Occurred."
-                        })
-                        reqListener(JSON.stringify(response), CELLS)
+                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.
+                            <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                        newBtn.disabled = false;
                     });
+
                     oReq.open("GET", testSetupUrl);
                     newBtn.disabled = true;
-                    Object.keys(CELLS).forEach(crypto => {
-                        let cell = CELLS[crypto]
-                        cell.innerHTML = "$trans_text_testing";
-                    })
+                    responseDiv.innerHTML = "$trans_text_testing";
                     oReq.send();
-                    
                 }
-
-			}
+            }
 
             // For Non AJAX Based Submission
             if(sessionStorage.getItem("runTest") && !document.querySelector('#manage .errorbox')) {
