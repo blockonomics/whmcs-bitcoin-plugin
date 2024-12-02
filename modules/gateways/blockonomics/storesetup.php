@@ -7,12 +7,7 @@ use Blockonomics\Blockonomics;
 
 // Create Blockonomics instance and check admin access
 $blockonomics = new Blockonomics();
-// $blockonomics->checkAdmin();
-
-// Allow CORS
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+$blockonomics->checkAdmin();
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

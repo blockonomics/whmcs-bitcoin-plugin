@@ -220,9 +220,7 @@ function blockonomics_config()
             }
 
             function doTest() {
-                const form = new FormData(saveButtonCell.closest('form'))
-                let activeCryptos = ['btc'];
-                
+                const form = new FormData(saveButtonCell.closest('form'));                
                 // Remove any existing response div
                 const existingResponse = document.getElementById('blockonomics-test-response');
                 if (existingResponse) {
@@ -252,14 +250,15 @@ function blockonomics_config()
                         if(this.status != 200) {
                             let status_code = this.status;
                             let status_msg = this.statusText;
-                            responseDiv.innerHTML = `<label style='color:red;'>Error:</label> An Error Occurred. Status Code: ${status_code} (${status_msg})
-                                <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                            const response = JSON.parse(this.responseText);
+                            responseDiv.innerHTML = '<label style="color:red;">Error: ' + (response.btc || 'An Error Occurred') + '. Status Code: ' + status_code + ' (' + status_msg + ')</label>' +
+                                '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
                         } else {
                             try {
                                 const response = JSON.parse(this.responseText);
                                 if (Object.keys(response).length && response.btc) {
-                                    responseDiv.innerHTML = `<label style='color:red;'>Error:</label> ${response.btc}
-                                        <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                                    responseDiv.innerHTML = '<label style="color:red;">Error: ' + response.btc + '</label>' +
+                                        '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
                                 } else {
                                     responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
                                 }
@@ -420,11 +419,13 @@ HTML;
     ];
     $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
     foreach ($blockonomics_currencies as $code => $currency) {
-        $settings_array[$code . 'Enabled'] = [
-            'FriendlyName' => $currency['name'] .' (' . strtoupper($code) . ')',
-            'Type' => 'yesno',
-            'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
-        ];
+        if ($code != 'btc') {
+            $settings_array[$code . 'Enabled'] = [
+                'FriendlyName' => $currency['name'] .' (' . strtoupper($code) . ')',
+                'Type' => 'yesno', 
+                'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
+            ];
+        }
         if ($code == 'btc') {
             $settings_array[$code . 'Enabled']['Default'] = true;
         }
