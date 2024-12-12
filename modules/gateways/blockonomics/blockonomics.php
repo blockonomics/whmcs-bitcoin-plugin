@@ -809,8 +809,11 @@ class Blockonomics
                 continue;
             }
             // Check for partial match - only secret or protocol differs
-            $store_base_url = preg_replace('/https?:\/\//', '', $store->http_callback);
-            if (strpos($store_base_url, $base_url) === 0) {
+            // Extract base URL by removing protocol and query parameters
+            $store_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $store->http_callback);
+            $target_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $callback_url);
+
+            if ($store_base_url === $target_base_url) {
                 $partial_match_store = $store;
             }
         }
@@ -1105,11 +1108,10 @@ class Blockonomics
 
         // Handle response based on status code
         if ($http_code === 401) {
-            http_response_code(401);
             return json_encode(['error' => 'Invalid API key or unauthorized access']);
         } elseif ($http_code !== 200) {
             http_response_code($http_code);
-            return json_encode(['error' => 'Blockonomics API error', 'status' => $http_code, 'response' => $response]);
+            return json_encode(['error' => 'Blockonomics API error',  'response' => $response]);
         }
 
         return $response;

@@ -95,28 +95,27 @@ function blockonomics_config()
             settingsFieldArea.appendChild(settingsHeader);
 
             //Currency header
-            const currencyRow = blockonomicsTable.insertRow( 11 );
-			currencyRow.insertCell(0);
-            const currencyFieldArea = currencyRow.insertCell(1);
-            
-            const currencyHeader = document.createElement('h4');
-            currencyHeader.style.cssText = headerStyles
-            currencyHeader.textContent = 'Currencies';
-            currencyFieldArea.appendChild(currencyHeader);
+           
 
             /**
 			 * Generate Advanced Settings Button
 			 */
             //get advanced settings HTML elements 
-            const timePeriod = blockonomicsTable.rows[7];
-            const extraMargin = blockonomicsTable.rows[8];
-            const underSlack = blockonomicsTable.rows[9];
-            const confirmations = blockonomicsTable.rows[10];
+            const callbackUrl = blockonomicsTable.rows[7];
+            const timePeriod = blockonomicsTable.rows[8];
+            const extraMargin = blockonomicsTable.rows[9];
+            const underSlack = blockonomicsTable.rows[10];
+            const confirmations = blockonomicsTable.rows[11];
+            const btccurrencySettings = blockonomicsTable.rows[12];
+            const bchcurrencySettings = blockonomicsTable.rows[13];
 
+            callbackUrl.style.display = "none";
             timePeriod.style.display = "none";
             extraMargin.style.display = "none";
             underSlack.style.display = "none";
             confirmations.style.display = "none";
+            btccurrencySettings.style.display = "none";
+            bchcurrencySettings.style.display = "none";
 
             var advancedSettingsRow = blockonomicsTable.insertRow(7);
 			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
@@ -137,15 +136,19 @@ function blockonomics_config()
 			advancedLink.onclick = function() {
                 advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
                 if (showingAdvancedSettings) {
+                    callbackUrl.style.display = "none";
                     timePeriod.style.display = "none";
                     extraMargin.style.display = "none";
                     underSlack.style.display = "none";
                     confirmations.style.display = "none";
+                    bchcurrencySettings.style.display = "none";
                 } else {
+                    callbackUrl.style.display = "table-row";
                     timePeriod.style.display = "table-row";
                     extraMargin.style.display = "table-row";
                     underSlack.style.display = "table-row";
                     confirmations.style.display = "table-row";
+                    bchcurrencySettings.style.display = "table-row";
                 }
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
@@ -175,10 +178,15 @@ function blockonomics_config()
 
             buttonCell.appendChild(newBtn);
 
-            function handle_ajax_save(res, xhr, settings){
-                // Update store name
-                updateStoreName();
+            function handle_update_store_click(res, xhr, settings){
+                if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
+                    if (xhr.status == 200 && !sessionStorage.getItem("updateStore")) {
+                        updateStoreName();  
+                    }
+                }
+            }
 
+            function handle_ajax_save(res, xhr, settings){
                 if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
                     // We detected the Blockonomics Request
 
@@ -200,6 +208,7 @@ function blockonomics_config()
                     jQuery(document).on('ajaxComplete', handle_ajax_save)
                 }
                 sessionStorage.setItem("runTest", true);
+                sessionStorage.setItem("updateStore", true);
                 if(saveButtonCell.querySelector('button[type=submit]')){
                     saveButtonCell.querySelector('button[type=submit]').click();
                 } else {
@@ -257,7 +266,7 @@ function blockonomics_config()
                             try {
                                 const response = JSON.parse(this.responseText);
                                 if (Object.keys(response).length && response.btc) {
-                                    responseDiv.innerHTML = '<label style="color:red;">Error: ' + response.btc + '</label>' +
+                                    responseDiv.innerHTML = '<label style="color:red;">' + response.btc + '</label>' +
                                         '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
                                 } else {
                                     responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
@@ -266,6 +275,8 @@ function blockonomics_config()
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
                                     <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
                             }
+                            updateStoreName();
+                            sessionStorage.removeItem("updateStore");
                         }
                         newBtn.disabled = false;
                     });
@@ -330,17 +341,11 @@ function blockonomics_config()
 
             // Update store name
             if(typeof jQuery != 'undefined') {
-                jQuery(document).on('ajaxComplete', updateStoreName)
+                jQuery(document).on('ajaxComplete', handle_update_store_click)
             }
-            // Add onblur event listener
-            apiKeyInput.addEventListener('blur', () => {
-                // Submit the form
-                if(saveButtonCell.querySelector('button[type=submit]')){
-                    saveButtonCell.querySelector('button[type=submit]').click();
-                } else {
-                    saveButtonCell.querySelector('input[type=submit]').click();
-                }
-            });
+
+            const apiKeyDesc = document.querySelector('.api-key-description');
+            apiKeyDesc.style.display = document.getElementsByName('field[ApiKey]')[0].value ? 'none' : 'inline';
 
 		</script>
 HTML;
@@ -363,7 +368,7 @@ HTML;
     ];
     $settings_array['ApiKey'] = [
         'FriendlyName' => $_BLOCKLANG['apiKey']['title'],
-        'Description' => $_BLOCKLANG['apiKey']['description'],
+        'Description' => '<span class="api-key-description">' . $_BLOCKLANG['apiKey']['description'] . '</span>',
         'Type' => 'text',
     ];
     $settings_array['StoreName'] = [
@@ -421,7 +426,7 @@ HTML;
     foreach ($blockonomics_currencies as $code => $currency) {
         if ($code != 'btc') {
             $settings_array[$code . 'Enabled'] = [
-                'FriendlyName' => $currency['name'] .' (' . strtoupper($code) . ')',
+                'FriendlyName' => $_BLOCKLANG['enabled'][$code.'_title'],
                 'Type' => 'yesno', 
                 'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
             ];
