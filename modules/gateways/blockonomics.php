@@ -3,7 +3,6 @@
 require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
 
 use Blockonomics\Blockonomics;
-use WHMCS\Database\Capsule;
 
 function blockonomics_config()
 {
