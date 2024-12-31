@@ -36,6 +36,8 @@ $_BLOCKLANG['invoiceNote']['waiting'] = 'Waiting for Confirmation on';
 $_BLOCKLANG['invoiceNote']['network'] = 'network';
 
 // Admin Menu
+$_BLOCKLANG['storeName']['title'] = 'Store Name';
+$_BLOCKLANG['storeName']['description'] = 'Your Blockonomics store name';
 $_BLOCKLANG['version']['title'] = 'Version';
 $_BLOCKLANG['apiKey']['title'] = 'API Key';
 $_BLOCKLANG['apiKey']['description'] = 'To get your API Key, click <b>Get Started for Free</b> on <a target="_blank" href="https://blockonomics.co/merchants">https://blockonomics.co/merchants</a>';

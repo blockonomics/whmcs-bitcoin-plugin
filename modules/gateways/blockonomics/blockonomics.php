@@ -726,10 +726,15 @@ class Blockonomics
                     // Success case - get store data from API
                     $store_setup = $this->checkStoreSetup();
                     if (isset($store_setup['success'])) {
-                        $test_results['store_data'] = array(
-                            'name' => $store_setup['store_name'],
-                            'enabled_cryptos' => array_keys($active_currencies)
-                        );
+                        try {
+                            // Update the gateway config directly
+                            Capsule::table('tblpaymentgateways')
+                                ->where('gateway', 'blockonomics')
+                                ->where('setting', 'StoreName')
+                                ->update(['value' => $store_setup['store_name']]);
+                        } catch (Exception $e) {
+                            $test_results[$code] = "Failed to save store configuration";
+                        }
                     }
                 }
             }

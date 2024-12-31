@@ -3,6 +3,7 @@
 require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
 
 use Blockonomics\Blockonomics;
+use WHMCS\Database\Capsule;
 
 function blockonomics_config()
 {
@@ -178,14 +179,6 @@ function blockonomics_config()
 
             buttonCell.appendChild(newBtn);
 
-            function handle_update_store_click(res, xhr, settings){
-                if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
-                    if (xhr.status == 200 && !sessionStorage.getItem("updateStore")) {
-                        updateStoreName();  
-                    }
-                }
-            }
-
             function handle_ajax_save(res, xhr, settings){
                 if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
                     // We detected the Blockonomics Request
@@ -275,8 +268,6 @@ function blockonomics_config()
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
                                     <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
                             }
-                            updateStoreName();
-                            sessionStorage.removeItem("updateStore");
                         }
                         newBtn.disabled = false;
                     });
@@ -300,50 +291,6 @@ function blockonomics_config()
                 doTest()
             }
 
-            /**
-             * Check API key and update store name
-             */
-            const apiKeyInput = document.getElementsByName('field[ApiKey]')[0];
-            const storeNameField = document.getElementsByClassName('store-name-description')[0];
-
-            function updateStoreName() {
-                if (!apiKeyInput.value) {
-                    storeNameField.innerHTML = 'Enter API key to fetch store name';
-                    return;
-                }
-
-                // Show loading message
-                storeNameField.innerHTML = 'Loading store name...';
-
-                // Use local proxy to avoid CORS issues
-                var storesetupUrl = "$system_url" + "modules/gateways/blockonomics/storesetup.php";
-                fetch(storesetupUrl)
-                    .then(response => response.json())
-                    .then(response => {
-                        if (response.needs_store) {
-                            storeNameField.innerHTML = 'No stores found for this API key';
-                            return;
-                        }
-
-                        if (response.success && response.store_name) {
-                            storeNameField.innerHTML = response.store_name;
-                        } else {
-                            storeNameField.innerHTML = 'No matching store found for this callback URL';
-                        }
-                    })
-                    .catch(error => {
-                        storeNameField.innerHTML = 'Error fetching store information';
-                        console.error('Store fetch error:', error);
-                    });
-            }
-
-            updateStoreName();
-
-            // Update store name
-            if(typeof jQuery != 'undefined') {
-                jQuery(document).on('ajaxComplete', handle_update_store_click)
-            }
-
             const apiKeyDesc = document.querySelector('.api-key-description');
             apiKeyDesc.style.display = document.getElementsByName('field[ApiKey]')[0].value ? 'none' : 'inline';
 
@@ -355,6 +302,16 @@ HTML;
     $blockonomics = new Blockonomics();
     include $blockonomics->getLangFilePath();
     $blockonomics->createOrderTableIfNotExist();
+
+    // Get stored store name
+    try {
+        $store_name = Capsule::table('tblpaymentgateways')
+            ->where('gateway', 'blockonomics')
+            ->where('setting', 'StoreName')
+            ->value('value');
+    } catch (Exception $e) {
+        $store_name = null;
+    }
 
     $settings_array = [
         'FriendlyName' => [
@@ -372,10 +329,12 @@ HTML;
         'Type' => 'text',
     ];
     $settings_array['StoreName'] = [
-        'FriendlyName' => 'Store Name',
-        'Description' => '<span class="store-name-description">Enter API key to fetch store name</span>',
+        'FriendlyName' => $_BLOCKLANG['storeName']['title'],
+        'Type' => 'text',
+        'Description' => $_BLOCKLANG['storeName']['description'],
+        'Value' => '',
+        'Disabled' => true
     ];
-
 
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],
