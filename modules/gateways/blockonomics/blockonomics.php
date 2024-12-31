@@ -714,7 +714,7 @@ class Blockonomics
     {
         $test_results = array();
         $active_currencies = $this->getActiveCurrencies();
-        
+
         foreach ($active_currencies as $code => $currency) {
             $result = $this->test_one_currency($code);
 
@@ -727,11 +727,23 @@ class Blockonomics
                     $store_setup = $this->checkStoreSetup();
                     if (isset($store_setup['success'])) {
                         try {
-                            // Update the gateway config directly
-                            Capsule::table('tblpaymentgateways')
-                                ->where('gateway', 'blockonomics')
-                                ->where('setting', 'StoreName')
-                                ->update(['value' => $store_setup['store_name']]);
+                            $gatewayParams = getGatewayVariables('blockonomics');
+                            $storeName = $gatewayParams['StoreName'];
+
+                            // Only update if store name has changed
+                            if (!isset($storeName) || $storeName !== $store_setup['store_name']) {
+                                Capsule::table('tblpaymentgateways')
+                                    ->updateOrInsert(
+                                        [
+                                            'gateway' => 'blockonomics',
+                                            'setting' => 'StoreName'
+                                        ],
+                                        [
+                                            'value' => $store_setup['store_name'],
+                                            'order' => 0
+                                        ]
+                                    );
+                                }
                         } catch (Exception $e) {
                             $test_results[$code] = "Failed to save store configuration";
                         }
