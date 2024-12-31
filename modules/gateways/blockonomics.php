@@ -304,14 +304,8 @@ HTML;
     $blockonomics->createOrderTableIfNotExist();
 
     // Get stored store name
-    try {
-        $store_name = Capsule::table('tblpaymentgateways')
-            ->where('gateway', 'blockonomics')
-            ->where('setting', 'StoreName')
-            ->value('value');
-    } catch (Exception $e) {
-        $store_name = null;
-    }
+    $gatewayParams = getGatewayVariables('blockonomics');
+    $storeName = $gatewayParams['StoreName'];
 
     $settings_array = [
         'FriendlyName' => [
@@ -331,8 +325,9 @@ HTML;
     $settings_array['StoreName'] = [
         'FriendlyName' => $_BLOCKLANG['storeName']['title'],
         'Type' => 'text',
+        'Size' => '50',
         'Description' => $_BLOCKLANG['storeName']['description'],
-        'Value' => '',
+        'Value' =>  $storeName,
         'Disabled' => true
     ];
 
