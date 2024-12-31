@@ -12,14 +12,21 @@ class Blockonomics
 {
     private $version = '1.9.8';
 
-    const SET_CALLBACK_URL = 'https://www.blockonomics.co/api/update_callback';
-    const GET_CALLBACKS_URL = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const BASE_URL = 'https://www.blockonomics.co';
+    const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
-    const BCH_SET_CALLBACK_URL = 'https://bch.blockonomics.co/api/update_callback';
-    const BCH_GET_CALLBACKS_URL = 'https://bch.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
+    const NEW_ADDRESS_URL = self::BASE_URL . '/api/new_address';
+    const PRICE_URL = self::BASE_URL . '/api/price';
 
-    private const BASE_URL = 'https://www.blockonomics.co/api';
-    private const BCH_BASE_URL = 'https://bch.blockonomics.co/api';
+    const BCH_PRICE_URL = self::BCH_BASE_URL . '/api/price';
+    const BCH_NEW_ADDRESS_URL = self::BCH_BASE_URL . '/api/new_address';
+
+    const SET_CALLBACK_URL = self::BASE_URL . '/api/update_callback';
+    const GET_CALLBACKS_URL = self::BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+
+    const BCH_SET_CALLBACK_URL = self::BCH_BASE_URL . '/api/update_callback';
+    const BCH_GET_CALLBACKS_URL = self::BCH_BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
     /*
      * Get the blockonomics version
@@ -217,8 +224,7 @@ class Blockonomics
     public function getNewAddress($currency = 'btc', $reset = false)
     {
         // Determine base URL based on currency
-        $base_url = ($currency == 'btc') ? self::BASE_URL : self::BCH_BASE_URL;
-        $url = $base_url . '/new_address';
+        $url = ($currency == 'btc') ? self::NEW_ADDRESS_URL : self::BCH_NEW_ADDRESS_URL;
 
         // Get the callback URL with secret
         $callback_secret = $this->getCallbackSecret();
@@ -290,15 +296,13 @@ class Blockonomics
     public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
     {
         try {
-            if ($blockonomics_currency == 'btc') {
-                $subdomain = 'www';
-            } else {
-                $subdomain = $blockonomics_currency;
-            }
+            $url = ($blockonomics_currency == 'btc') ?
+            self::PRICE_URL . '?currency=' . $currency :
+            self::BCH_PRICE_URL . '?currency=' . $currency;
 
             $ch = curl_init();
 
-            curl_setopt($ch, CURLOPT_URL, 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency);
+            curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
             $contents = curl_exec($ch);
@@ -849,7 +853,7 @@ class Blockonomics
             ]);
 
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, 'https://www.blockonomics.co/api/v2/stores/' . $store_to_update->id);
+            curl_setopt($ch, CURLOPT_URL, self::BASE_URL . '/api/v2/stores/' . $store_to_update->id);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
@@ -1097,9 +1101,9 @@ class Blockonomics
     public function getStoreSetup() 
     {
         $api_key = $this->getApiKey();
-        
+
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://www.blockonomics.co/api/v2/stores?wallets=true');
+        curl_setopt($ch, CURLOPT_URL, self::STORES_URL);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -1137,7 +1141,7 @@ class Blockonomics
     public function checkStoreSetup()
     {
         $response = json_decode($this->getStoreSetup());
-        
+
         // Check if we got a valid response with stores data
         if (!isset($response->data) || empty($response->data)) {
             return array('needs_store' => true);
