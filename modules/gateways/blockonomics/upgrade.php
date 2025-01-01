@@ -18,6 +18,18 @@ if (doubleval($blockonomics->getVersion()) < 1.9) {
     exit('Version 1.9 or higher must be installed before executing this upgrader.');
 }
 
+// Remove legacy convertto field from tblpaymentgateways table
+try {
+    if (Capsule::schema()->hasTable('tblpaymentgateways')) {
+        Capsule::table('tblpaymentgateways')
+            ->where('gateway', 'blockonomics')
+            ->where('setting', 'convertto')
+            ->delete();
+    }
+} catch (Exception $e) {
+    logActivity("Blockonomics upgrade warning: Could not remove legacy 'convertto' field: " . $e->getMessage());
+}
+
 // List of files to be deleted
 $filesToDelete = [
     '/payment.php',
