@@ -16,6 +16,7 @@ class Blockonomics
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
     const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
+    const WALLETS_URL = self::BASE_URL . '/api/v2/wallets';
     const NEW_ADDRESS_URL = self::BASE_URL . '/api/new_address';
     const PRICE_URL = self::BASE_URL . '/api/price';
 
@@ -759,6 +760,31 @@ class Blockonomics
         return $test_results;
     }
 
+    private function checkWalletsExist()
+    {
+        $api_key = $this->getApiKey();
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . trim($api_key),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($http_code === 401) {
+            return false; // show the incorrect API key message
+        }
+
+        $response_data = json_decode($response);
+        return !empty($response_data->data);
+    }
+
     public function test_one_currency($currency)
     {
         include $this->getLangFilePath();
@@ -790,6 +816,29 @@ class Blockonomics
 
         if ($currency !== 'btc') {
             return 'Test Setup only supports BTC';
+        }
+
+        // Check if api is correct and wallet is added
+        $wallet_check = $this->checkWalletsExist();
+        // If wallet check returns false, it could be either invalid API key (401) or no wallets
+        if (!$wallet_check) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . trim($api_key),
+                'Content-Type: application/json'
+            ]);
+
+            curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($http_code === 401) {
+                return $_BLOCKLANG['testSetup']['incorrectApi'];
+            }
+
+            return 'Please add a wallet on Blockonomics website';
         }
 
         // Get store setup from API
@@ -1116,7 +1165,19 @@ class Blockonomics
 
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
+        // Log the API call
+        logModuleCall(
+            'blockonomics',
+            'Get Store Setup - Request',
+            [
+                'url' => self::STORES_URL,
+                'headers' => $headers,
+                'method' => 'GET'
+            ],
+            null,
+            null,
+            [$api_key]
+        );
         // Check for cURL errors
         if (curl_errno($ch)) {
             $error = curl_error($ch);

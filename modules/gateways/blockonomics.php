@@ -253,19 +253,19 @@ function blockonomics_config()
                             let status_msg = this.statusText;
                             const response = JSON.parse(this.responseText);
                             responseDiv.innerHTML = '<label style="color:red;">Error: ' + (response.btc || 'An Error Occurred') + '. Status Code: ' + status_code + ' (' + status_msg + ')</label>' +
-                                '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
+                                '<br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>';
                         } else {
                             try {
                                 const response = JSON.parse(this.responseText);
                                 if (Object.keys(response).length && response.btc) {
                                     responseDiv.innerHTML = '<label style="color:red;">' + response.btc + '</label>' +
-                                        '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
+                                        '<br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>';
                                 } else {
                                     responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
                                 }
                             } catch (err) {
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
-                                    <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                                    <br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>`;
                             }
                         }
                         newBtn.disabled = false;
@@ -273,7 +273,7 @@ function blockonomics_config()
 
                     oReq.addEventListener("error", function(error) {
                         responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.
-                            <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                            <br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>`;
                         newBtn.disabled = false;
                     });
 
