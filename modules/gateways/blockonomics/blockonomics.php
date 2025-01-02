@@ -2,6 +2,9 @@
 
 namespace Blockonomics;
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 use Exception;
 use stdClass;
 use WHMCS\Database\Capsule;
@@ -523,6 +526,11 @@ class Blockonomics
                 ]
             );
         } catch (Exception $e) {
+            // Check if it's a duplicate key error
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                exit("Duplicate address generation error. Note to website administrator: please contact Blockonomics support portal for assistance.");
+            }
+            // For other database errors, show a generic message
             exit("Unable to insert new order into blockonomics_orders: {$e->getMessage()}");
         }
         return true;
