@@ -317,6 +317,7 @@ class Blockonomics
             $price = json_decode($contents)->price;
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
+                // lower price means customers need to pay more BTC for the same fiat amount
                 $price = $price * 100 / (100 + $margin);
             }
         } catch (Exception $e) {
