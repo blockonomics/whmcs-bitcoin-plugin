@@ -1,5 +1,6 @@
 <link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css">
 
+
 <div id="blockonomics_checkout">
     <div class="bnomics-order-container">
         
@@ -79,6 +80,20 @@
         </div>
     </div>
 </div>
+
+{if $crypto['code'] eq 'usdt'}
+<web3-payment
+    order_amount="{$order_amount}"
+    receive_address="{$order->addr}"
+    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}"
+    testnet=1
+></web3-payment>
+{/if}
+
+
+{if $crypto['code'] eq 'usdt'}
+<script type="text/javascript" src="https://stagingtest.blockonomics.co/js/web3-payment.js"></script>
+{/if}
 
 <script>
 var blockonomics_data = JSON.stringify({

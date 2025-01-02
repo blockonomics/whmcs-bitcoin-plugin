@@ -30,7 +30,8 @@ function blockonomics_config()
             $callback_url = $blockonomics->getCallbackUrl($secret);
             $trans_text_system_url_error = $_BLOCKLANG['testSetup']['systemUrl']['error'];
             $trans_text_system_url_fix = $_BLOCKLANG['testSetup']['systemUrl']['fix'];
-            $trans_text_success = $_BLOCKLANG['testSetup']['success'];
+            $trans_text_success_btc = $_BLOCKLANG['testSetup']['success']['btc'];
+            $trans_text_success_usdt = $_BLOCKLANG['testSetup']['success']['usdt'];
             $trans_text_protocol_error = $_BLOCKLANG['testSetup']['protocol']['error'];
             $trans_text_protocol_fix = $_BLOCKLANG['testSetup']['protocol']['fix'];
             $trans_text_testing = $_BLOCKLANG['testSetup']['testing'];
@@ -108,6 +109,7 @@ function blockonomics_config()
             const confirmations = blockonomicsTable.rows[11];
             const btccurrencySettings = blockonomicsTable.rows[12];
             const bchcurrencySettings = blockonomicsTable.rows[13];
+            const usdtcurrencySettings = blockonomicsTable.rows[14];
 
             callbackUrl.style.display = "none";
             timePeriod.style.display = "none";
@@ -116,6 +118,7 @@ function blockonomics_config()
             confirmations.style.display = "none";
             btccurrencySettings.style.display = "none";
             bchcurrencySettings.style.display = "none";
+            usdtcurrencySettings.style.display = "none";
 
             var advancedSettingsRow = blockonomicsTable.insertRow(7);
 			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
@@ -142,6 +145,7 @@ function blockonomics_config()
                     underSlack.style.display = "none";
                     confirmations.style.display = "none";
                     bchcurrencySettings.style.display = "none";
+                    usdtcurrencySettings.style.display = "none";
                 } else {
                     callbackUrl.style.display = "table-row";
                     timePeriod.style.display = "table-row";
@@ -149,6 +153,7 @@ function blockonomics_config()
                     underSlack.style.display = "table-row";
                     confirmations.style.display = "table-row";
                     bchcurrencySettings.style.display = "table-row";
+                    usdtcurrencySettings.style.display = "table-row";
                 }
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
@@ -265,11 +270,25 @@ function blockonomics_config()
                         } else {
                             try {
                                 const response = JSON.parse(this.responseText);
-                                if (Object.keys(response).length && response.btc) {
-                                    responseDiv.innerHTML = '<label style="color:red;">' + response.btc + '</label>' +
+                                
+                                responseDiv.innerHTML = '';
+
+                                // Handle BTC response
+                                if (response.btc === false) {
+                                    responseDiv.innerHTML += `<label style='color:green;'>$trans_text_success_btc</label>`;
+                                } else if (response.btc) {
+                                    responseDiv.innerHTML += '<label style="color:red;"> BTC:' + response.btc + '</label>' +
                                         '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
-                                } else {
-                                    responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
+                                }
+
+                                // Handle USDT response separately
+                                if (response.usdt === false) {
+                                    responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') + 
+                                        `<label style='color:green;'>$trans_text_success_usdt</label>`;
+                                } else if (response.usdt) {
+                                    responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') +
+                                        '<label style="color:red;"> USDT: ' + response.usdt + '</label>' +
+                                        '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
                                 }
                             } catch (err) {
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix

@@ -110,6 +110,11 @@ class Blockonomics
                 'name' => 'Bitcoin Cash',
                 'uri' => 'bitcoincash',
             ],
+            'usdt' => array(
+                'code' => 'usdt',
+                'name' => 'USDT',
+                'uri' => 'USDT'
+            )
         ];
     }
 
@@ -217,7 +222,7 @@ class Blockonomics
     public function getNewAddress($currency = 'btc', $reset = false)
     {
         // Determine base URL based on currency
-        $base_url = ($currency == 'btc') ? self::BASE_URL : self::BCH_BASE_URL;
+        $base_url = ($currency == 'bch') ? self::BCH_BASE_URL : self::BASE_URL;
         $url = $base_url . '/new_address';
 
         // Get the callback URL with secret
@@ -232,6 +237,7 @@ class Blockonomics
         if ($reset) {
             $params['reset'] = 1;
         }
+        $params['crypto'] = strtoupper($currency);
 
         // Append query parameters to URL
         if (!empty($params)) {
@@ -767,7 +773,7 @@ class Blockonomics
             return $_BLOCKLANG['testSetup']['emptyApi'];
         }
 
-        if ($currency !== 'btc') {
+        if ($currency === 'bch') {
             return 'Test Setup only supports BTC';
         }
 
