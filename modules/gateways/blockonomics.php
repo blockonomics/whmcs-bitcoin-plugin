@@ -1,5 +1,9 @@
 <?php
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
+
 require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
 
 use Blockonomics\Blockonomics;

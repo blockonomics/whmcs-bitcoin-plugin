@@ -1,5 +1,8 @@
 <?php
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 // Require libraries needed for gateway module functions.
 require '../../../init.php';
 require '../../../includes/gatewayfunctions.php';
