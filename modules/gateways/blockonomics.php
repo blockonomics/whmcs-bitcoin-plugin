@@ -290,9 +290,6 @@ function blockonomics_config()
                 doTest()
             }
 
-            const apiKeyDesc = document.querySelector('.api-key-description');
-            apiKeyDesc.style.display = document.getElementsByName('field[ApiKey]')[0].value ? 'none' : 'inline';
-
 		</script>
 HTML;
         }
