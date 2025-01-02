@@ -1,10 +1,10 @@
 <?php
+require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
 
 use Blockonomics\Blockonomics;
 
@@ -99,12 +99,10 @@ function blockonomics_config()
             settingsFieldArea.appendChild(settingsHeader);
 
             //Currency header
-           
 
             /**
-			 * Generate Advanced Settings Button
+			 * Generate Advanced Settings Button and get the HTML elements
 			 */
-            //get advanced settings HTML elements 
             const callbackUrl = blockonomicsTable.rows[7];
             const timePeriod = blockonomicsTable.rows[8];
             const extraMargin = blockonomicsTable.rows[9];
@@ -132,11 +130,11 @@ function blockonomics_config()
 
             let showingAdvancedSettings = false;
             /**
- * Get store name from Blockonomics API using API key and callback URL
- * 
- * @return string Store name or empty string if error
- */
-        
+             * Get store name from Blockonomics API using API key and callback URL
+             *
+             * @return string Store name or empty string if error
+             */
+
 			advancedLink.onclick = function() {
                 advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
                 if (showingAdvancedSettings) {
@@ -192,7 +190,6 @@ function blockonomics_config()
                     // Do the Test
                     if (xhr.status == 200 && sessionStorage.getItem("runTest"))
                         doTest();
-                    
                     // Remove Test Session Key if exists
                     sessionStorage.removeItem("runTest");
                 }
@@ -225,7 +222,7 @@ function blockonomics_config()
             }
 
             function doTest() {
-                const form = new FormData(saveButtonCell.closest('form'));                
+                const form = new FormData(saveButtonCell.closest('form'));
                 // Remove any existing response div
                 const existingResponse = document.getElementById('blockonomics-test-response');
                 if (existingResponse) {
@@ -238,53 +235,52 @@ function blockonomics_config()
                 responseDiv.style.marginTop = '10px';
                 buttonCell.appendChild(responseDiv);
 
-                var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
+                var testSetupUrl = "$system_url";
+                if (!testSetupUrl.endsWith('/')) {
+                    testSetupUrl += '/';
+                }
+                testSetupUrl += "modules/gateways/blockonomics/testsetup.php";
 
                 try {
                     var systemUrlProtocol = new URL("$system_url").protocol;
                 } catch (err) {
-                    var systemUrlProtocol = '';
+                    console.error("Error parsing URL:", err);
                 }
 
                 if (systemUrlProtocol != location.protocol) {
                     responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label> 
                         $trans_text_protocol_fix`;
                 } else {
-                    let oReq = new XMLHttpRequest();
-                    oReq.addEventListener("load", function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.addEventListener("load", function() {
                         if(this.status != 200) {
-                            let status_code = this.status;
-                            let status_msg = this.statusText;
-                            const response = JSON.parse(this.responseText);
-                            responseDiv.innerHTML = '<label style="color:red;">Error: ' + (response.btc || 'An Error Occurred') + '. Status Code: ' + status_code + ' (' + status_msg + ')</label>' +
-                                '<br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>';
+                            responseDiv.innerHTML = '<label style="color:red;">Error: Network error occurred</label>';
                         } else {
                             try {
                                 const response = JSON.parse(this.responseText);
                                 if (Object.keys(response).length && response.btc) {
-                                    responseDiv.innerHTML = '<label style="color:red;">' + response.btc + '</label>' +
-                                        '<br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>';
+                                    responseDiv.innerHTML = '<label style="color:red;">' + response.btc + '</label>';
                                 } else {
                                     responseDiv.innerHTML = `<label style='color:green;'>$trans_text_success</label>`;
                                 }
                             } catch (err) {
-                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
-                                    <br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>`;
+                                console.error("Parse error:", err);
+                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error`;
                             }
                         }
                         newBtn.disabled = false;
                     });
 
-                    oReq.addEventListener("error", function(error) {
-                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.
-                            <br>For more assistance, please visit <a href="https://blockonomics.freshdesk.com/support/home" target="_blank">Blockonomics Support portal</a>`;
+                    xhr.addEventListener("error", function(error) {
+                        console.error("XHR Error:", error);
+                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.`;
                         newBtn.disabled = false;
                     });
 
-                    oReq.open("GET", testSetupUrl);
+                    xhr.open("GET", testSetupUrl);
                     newBtn.disabled = true;
                     responseDiv.innerHTML = "$trans_text_testing";
-                    oReq.send();
+                    xhr.send();
                 }
             }
 

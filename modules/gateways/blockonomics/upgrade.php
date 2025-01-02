@@ -5,13 +5,12 @@
  * Then we delete the folders if they are empty
  * We also check if the screeshots folder and README.md file was installed and belongs to blockonomics so we can delete them too.
  */
-
- if (!defined("WHMCS")) {
-    die("This file cannot be accessed directly");
-}
-
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 
