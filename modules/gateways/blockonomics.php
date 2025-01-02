@@ -321,10 +321,9 @@ HTML;
     $settings_array['StoreName'] = [
         'FriendlyName' => $_BLOCKLANG['storeName']['title'],
         'Type' => 'text',
-        'Size' => '50',
         'Description' => $_BLOCKLANG['storeName']['description'],
         'Value' =>  $storeName,
-        'Disabled' => true
+        'ReadOnly' => true
     ];
 
     $settings_array['CallbackSecret'] = [
