@@ -734,6 +734,15 @@ class Blockonomics
 
             if (is_array($result) && isset($result['error'])) {
                 $test_results[$code] = $result['error'];
+                    // Clear store name on error
+                    try {
+                        Capsule::table('tblpaymentgateways')
+                            ->where('gateway', 'blockonomics')
+                            ->where('setting', 'StoreName')
+                            ->update(['value' => '']);
+                    } catch (Exception $e) {
+                        // Silently fail - not critical if store name clear fails
+                    }
             } else {
                 $test_results[$code] = $result;
                 if ($result === false) {
@@ -765,7 +774,6 @@ class Blockonomics
                 }
             }
         }
-        
         return $test_results;
     }
 
