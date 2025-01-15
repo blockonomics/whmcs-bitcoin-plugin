@@ -299,9 +299,6 @@ HTML;
     include $blockonomics->getLangFilePath();
     $blockonomics->createOrderTableIfNotExist();
 
-    // Get stored store name
-    $gatewayParams = getGatewayVariables('blockonomics');
-    $storeName = $gatewayParams['StoreName'];
 
     $settings_array = [
         'FriendlyName' => [
@@ -318,11 +315,20 @@ HTML;
         'Description' => '<span class="api-key-description">' . $_BLOCKLANG['apiKey']['description'] . '</span>',
         'Type' => 'text',
     ];
+    // Get current store name if it exists
+    $currentStoreName = null;
+    try {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $currentStoreName = $gatewayParams['StoreName'] ?? 'Your Blockonomics Store';
+    } catch (Exception $e) {
+        $currentStoreName = 'Your Blockonomics Store';
+    }
+
     $settings_array['StoreName'] = [
         'FriendlyName' => $_BLOCKLANG['storeName']['title'],
         'Type' => 'text',
-        'Description' => $_BLOCKLANG['storeName']['description'],
-        'Value' =>  $storeName,
+        'Size' => '40',
+        'Value' => $currentStoreName ?: 'Your Blockonomics Store',
         'ReadOnly' => true
     ];
 
