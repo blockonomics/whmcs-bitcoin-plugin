@@ -38,7 +38,7 @@
                 <web3-payment
                     order_amount="{$order_amount}"
                     receive_address="{$order_receive_address}"
-                    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}&crypto=usdt"
+                    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}"
                     testnet=1
                 ></web3-payment>
             {else}

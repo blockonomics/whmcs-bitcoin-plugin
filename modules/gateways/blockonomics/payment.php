@@ -29,7 +29,7 @@ $crypto = isset($_GET["crypto"]) ? htmlspecialchars($_GET['crypto']) : "";
 $select_crypto = isset($_GET["select_crypto"]) ? htmlspecialchars($_GET['select_crypto']) : "";
 $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_order']) : "";
 $get_order = isset($_GET['get_order']) ? htmlspecialchars($_GET['get_order']) : "";
-$txhash = isset($_GET['txn']) ? htmlspecialchars($_GET['txn']) : "";
+$txhash = isset($_GET['txhash']) ? htmlspecialchars($_GET['txhash']) : "";
 
 if($crypto === "empty"){
     $blockonomics->load_blockonomics_template($ca, 'no_crypto_selected');
