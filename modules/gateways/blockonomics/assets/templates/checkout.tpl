@@ -1,5 +1,7 @@
 <link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css">
-
+{if $crypto['code'] eq 'usdt'}
+<script type="text/javascript" src="https://stagingtest.blockonomics.co/js/web3-payment.js"></script>
+{/if}
 
 <div id="blockonomics_checkout">
     <div class="bnomics-order-container">
@@ -32,68 +34,63 @@
                     </th>
                 </tr>
             </table>
-            <table>
-                <tr>
-                    <th>
-                        <!-- Order Address -->
-                        <label class="bnomics-address-text">{$_BLOCKLANG.payAmount1}{strtolower($crypto['name'])}{$_BLOCKLANG.payAmount2}</label>
-                        <label class="bnomics-copy-address-text">{$_BLOCKLANG.copyClipboard}</label>
-                        <div class="bnomics-copy-container">
-                            <input type="text" value="{$order->addr}" id="bnomics-address-input" readonly/>
-                            <span id="bnomics-address-copy" class="blockonomics-icon-copy"></span>
-                            <span id="bnomics-show-qr" class="blockonomics-icon-qr"></span>
-                        </div>
-                        
-                        <div class="bnomics-qr-code">
-                            <div class="bnomics-qr">
-                                <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">
-                                    <canvas id="bnomics-qr-code"></canvas>
-                                </a>
+            {if $crypto['code'] eq 'usdt'}
+                <web3-payment
+                    order_amount="{$order_amount}"
+                    receive_address="{$order_receive_address}"
+                    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}&crypto=usdt"
+                    testnet=1
+                ></web3-payment>
+            {else}
+                <table>
+                    <tr>
+                        <th>
+                            <!-- Order Address -->
+                            <label class="bnomics-address-text">{$_BLOCKLANG.payAmount1}{strtolower($crypto['name'])}{$_BLOCKLANG.payAmount2}</label>
+                            <label class="bnomics-copy-address-text">{$_BLOCKLANG.copyClipboard}</label>
+                            <div class="bnomics-copy-container">
+                                <input type="text" value="{$order->addr}" id="bnomics-address-input" readonly/>
+                                <span id="bnomics-address-copy" class="blockonomics-icon-copy"></span>
+                                <span id="bnomics-show-qr" class="blockonomics-icon-qr"></span>
                             </div>
-                            <small class="bnomics-qr-code-hint">
-                                <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">{$_BLOCKLANG.openWallet}</a>
+                            
+                            <div class="bnomics-qr-code">
+                                <div class="bnomics-qr">
+                                    <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">
+                                        <canvas id="bnomics-qr-code"></canvas>
+                                    </a>
+                                </div>
+                                <small class="bnomics-qr-code-hint">
+                                    <a href="{$payment_uri}" target="_blank" class="bnomics-qr-link">{$_BLOCKLANG.openWallet}</a>
+                                </small>
+                            </div>
+
+                        </th>
+                    </tr>
+                </table>
+                <table>
+                    <tr>
+                        <th>
+                            <label class="bnomics-amount-text">{$_BLOCKLANG.payAddress1}{strtolower($crypto['name'])} ({strtoupper($crypto['code'])}){$_BLOCKLANG.payAddress2}</label>
+                            <label class="bnomics-copy-amount-text">{$_BLOCKLANG.copyClipboard}</label>
+
+                            <div class="bnomics-copy-container" id="bnomics-amount-copy-container">
+                                <input type="text" value="{$order_amount}" id="bnomics-amount-input" readonly/>
+                                <span id="bnomics-amount-copy" class="blockonomics-icon-copy"></span>
+                                <span id="bnomics-refresh" class="blockonomics-icon-refresh"></span>
+                            </div>
+
+                            <small class="bnomics-crypto-price-timer">
+                                1 {strtoupper($crypto['code'])} = <span id="bnomics-crypto-rate"> {$crypto_rate_str}</span> {$order->currency} {$_BLOCKLANG.updateIn} <span class="bnomics-time-left">00:00 min</span>
                             </small>
-                        </div>
+                        </th>
+                    </tr>
 
-                    </th>
-                </tr>
-            </table>
-            <table>
-                <tr>
-                    <th>
-                        <label class="bnomics-amount-text">{$_BLOCKLANG.payAddress1}{strtolower($crypto['name'])} ({strtoupper($crypto['code'])}){$_BLOCKLANG.payAddress2}</label>
-                        <label class="bnomics-copy-amount-text">{$_BLOCKLANG.copyClipboard}</label>
-
-                        <div class="bnomics-copy-container" id="bnomics-amount-copy-container">
-                            <input type="text" value="{$order_amount}" id="bnomics-amount-input" readonly/>
-                            <span id="bnomics-amount-copy" class="blockonomics-icon-copy"></span>
-                            <span id="bnomics-refresh" class="blockonomics-icon-refresh"></span>
-                        </div>
-
-                        <small class="bnomics-crypto-price-timer">
-                            1 {strtoupper($crypto['code'])} = <span id="bnomics-crypto-rate"> {$crypto_rate_str}</span> {$order->currency} {$_BLOCKLANG.updateIn} <span class="bnomics-time-left">00:00 min</span>
-                        </small>
-                    </th>
-                </tr>
-
-            </table>
+                </table>
+            {/if}
         </div>
     </div>
 </div>
-
-{if $crypto['code'] eq 'usdt'}
-<web3-payment
-    order_amount="{$order_amount}"
-    receive_address="{$order->addr}"
-    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}"
-    testnet=1
-></web3-payment>
-{/if}
-
-
-{if $crypto['code'] eq 'usdt'}
-<script type="text/javascript" src="https://stagingtest.blockonomics.co/js/web3-payment.js"></script>
-{/if}
 
 <script>
 var blockonomics_data = JSON.stringify({

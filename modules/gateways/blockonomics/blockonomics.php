@@ -12,13 +12,13 @@ class Blockonomics
 {
     private $version = '1.9.8';
 
-    const SET_CALLBACK_URL = 'https://www.blockonomics.co/api/update_callback';
-    const GET_CALLBACKS_URL = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const SET_CALLBACK_URL = 'https://stagingtest.blockonomics.co/api/update_callback';
+    const GET_CALLBACKS_URL = 'https://stagingtest.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
     const BCH_SET_CALLBACK_URL = 'https://bch.blockonomics.co/api/update_callback';
     const BCH_GET_CALLBACKS_URL = 'https://bch.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
-    private const BASE_URL = 'https://www.blockonomics.co/api';
+    private const BASE_URL = 'https://stagingtest.blockonomics.co/api';
     private const BCH_BASE_URL = 'https://bch.blockonomics.co/api';
 
     /*
@@ -104,16 +104,19 @@ class Blockonomics
                 'code' => 'btc',
                 'name' => 'Bitcoin',
                 'uri' => 'bitcoin',
+                'decimals' => 8,
             ],
             'bch' => [
                 'code' => 'bch',
                 'name' => 'Bitcoin Cash',
                 'uri' => 'bitcoincash',
+                'decimals' => 8,
             ],
             'usdt' => array(
                 'code' => 'usdt',
                 'name' => 'USDT',
-                'uri' => 'USDT'
+                'uri' => 'USDT',
+                'decimals' => 6,
             )
         ];
     }
@@ -290,29 +293,35 @@ class Blockonomics
         return $gatewayParams['Margin'];
     }
 
+    private function fetchPrice($url) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $contents = curl_exec($ch);
+        if (curl_errno($ch)) {
+            exit('Error:' . curl_error($ch));
+        }
+        curl_close($ch);
+        return $contents;
+    }
+
     /*
      * Convert fiat amount to Blockonomics currency
      */
     public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
     {
         try {
-            if ($blockonomics_currency == 'btc') {
-                $subdomain = 'www';
+            if ($blockonomics_currency === 'usdt') {
+                $url = 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency;
+                $contents = $this->fetchPrice($url);
+                $data = json_decode($contents);
+                $price = $data->{strtoupper($currency)};
             } else {
-                $subdomain = $blockonomics_currency;
+                $subdomain = ($blockonomics_currency == 'btc') ? 'www' : $blockonomics_currency;
+                $url = 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency;
+                $contents = $this->fetchPrice($url);
+                $price = json_decode($contents)->price;
             }
-
-            $ch = curl_init();
-
-            curl_setopt($ch, CURLOPT_URL, 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-            $contents = curl_exec($ch);
-            if (curl_errno($ch)) {
-                exit('Error:' . curl_error($ch));
-            }
-            curl_close($ch);
-            $price = json_decode($contents)->price;
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
                 $price = $price * 100 / (100 + $margin);
@@ -321,7 +330,11 @@ class Blockonomics
             exit("Error getting price from Blockonomics! {$e->getMessage()}");
         }
 
-        return intval(1.0e8 * $fiat_amount / $price);
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+
+        $multiplier = pow(10, $crypto['decimals']);
+        return intval($multiplier * $fiat_amount / $price);
     }
 
     /**
@@ -536,7 +549,11 @@ class Blockonomics
     {
         $new_addresss_response = $this->getNewAddress($blockonomics_currency);
         if ($new_addresss_response->response_code == 200) {
-            $order->addr = $new_addresss_response->address;
+            if ($blockonomics_currency === 'usdt') {
+                $order->addr = $new_addresss_response->address . '-' . $order->id_order;
+            } else {
+                $order->addr = $new_addresss_response->address;
+            }
         } else {
             exit($new_addresss_response->message);
         }
@@ -608,8 +625,49 @@ class Blockonomics
             'blockonomics_currency' => $existing_order->blockonomics_currency,
             'txid' => $existing_order->txid,
             'basecurrencyamount' => $existing_order->basecurrencyamount,
+            'addr' => $existing_order->addr,
         ];
     }
+
+    /*
+     * Try to get order row from db by txnid
+     */
+    public function getOrderBytxn($txnid)
+    {
+        try {
+            $existing_order = Capsule::table('blockonomics_orders')
+            ->where('txid', $txnid)
+            ->first();
+        } catch (Exception $e) {
+            exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
+        }
+
+        return [
+            'order_id' => $existing_order->id_order,
+            'timestamp' => $existing_order->timestamp,
+            'status' => $existing_order->status,
+            'value' => $existing_order->value,
+            'bits' => $existing_order->bits,
+            'bits_payed' => $existing_order->bits_payed,
+            'blockonomics_currency' => $existing_order->blockonomics_currency,
+            'txid' => $existing_order->txid,
+            'basecurrencyamount' => $existing_order->basecurrencyamount,
+            'addr' => $existing_order->addr,
+        ];
+    }
+
+    /*
+     * Try to get order row from db by transaction
+     */
+
+     public function blockonomicsTransactionExists($txhash)
+     {
+         $existing_order = Capsule::table('blockonomics_orders')
+             ->where('txid', $txhash)
+             ->first();
+ 
+         return $existing_order !== null;
+     }
 
     /*
      * Get the order id using the order hash
@@ -838,7 +896,7 @@ class Blockonomics
             ]);
 
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, 'https://www.blockonomics.co/api/v2/stores/' . $store_to_update->id);
+            curl_setopt($ch, CURLOPT_URL, 'https://stagingtest.blockonomics.co/api/v2/stores/' . $store_to_update->id);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
@@ -1016,8 +1074,17 @@ class Blockonomics
         return $uri . ':' . $addr . '?amount=' . $amount;
     }
     
-    public function fix_displaying_small_values($satoshi)
+    public function fix_displaying_small_values($satoshi, $blockonomics_currency)
     {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+
+        if ($blockonomics_currency == 'usdt') {
+            // For USDT, you usually don't need to display very small fractional values.
+            // Assuming $amount is in USDT, and typically 2 decimal places are sufficient.
+            return rtrim(number_format($satoshi/$multiplier, 2, '.', ''));
+        }
         if ($satoshi < 10000){
             return rtrim(number_format($satoshi/1.0e8, 8),0);
         } else {
@@ -1025,11 +1092,15 @@ class Blockonomics
         }
     }
 
-    public function get_crypto_rate_from_params($value, $satoshi) {
+    public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currency) {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+
         // Crypto Rate is re-calculated here and may slightly differ from the rate provided by Blockonomics
         // This is required to be recalculated as the rate is not stored anywhere in $order, only the converted satoshi amount is.
         // This method also helps in having a constant conversion and formatting for both Initial Load and API Refresh
-        return number_format($value*1.0e8/$satoshi, 2, '.', '');
+        return number_format($value*$multiplier/$satoshi, 2, '.', '');
     }
     
     public function load_checkout_template($ca, $show_order, $crypto)
@@ -1041,17 +1112,24 @@ class Blockonomics
         $active_cryptos = $this->getActiveCurrencies();
 
         $crypto = $active_cryptos[$crypto];
-        $order_amount = $this->fix_displaying_small_values($order->bits);
+
+        $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
         
         $context = array(
             'time_period' => $time_period,
             'order' => $order,
             'order_hash' => $show_order,
-            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits),
+            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $order_amount,
             'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount),
             'crypto' => $crypto
         );
+
+        if ($order->blockonomics_currency === 'usdt') {
+            $address_parts = explode('-', $order->addr);
+            $order_receive_address = $address_parts[0];
+            $context['order_receive_address'] = $order_receive_address;
+        }
 
         $this->load_blockonomics_template($ca, 'checkout', $context);
     }
@@ -1088,7 +1166,7 @@ class Blockonomics
         $api_key = $this->getApiKey();
         
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://www.blockonomics.co/api/v2/stores?wallets=true');
+        curl_setopt($ch, CURLOPT_URL, 'https://stagingtest.blockonomics.co/api/v2/stores?wallets=true');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -1146,5 +1224,30 @@ class Blockonomics
 
         // No matching store found
         return array('needs_store' => true);
+    }
+
+    function process_token_order($finish_order, $crypto, $txhash) {
+        include $this->getLangFilePath();
+
+        $order = $this->processOrderHash($finish_order, $crypto);
+
+        if (empty($order)) {
+            return;
+        }
+
+        $transactionExists = $this->blockonomicsTransactionExists($txhash);
+
+        if ($transactionExists) {
+            return;
+        }
+
+        $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
+
+        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency['name'] . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
+        $blockonomics_currency['name'] . " transaction id:\r" .
+            '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+
+        $this->updateOrderInDb($order->addr, $txhash, 0, 0);
+        $this->updateInvoiceNote($invoiceId, $invoiceNote);
     }
 }
