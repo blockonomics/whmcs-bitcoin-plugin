@@ -40,6 +40,7 @@ $filesToDelete = [
     '/css/order.css',
     '/img/bch.png',
     '/img/btc.png',
+    '/img/usdt.png',
     '/js/angular-resource.min.js',
     '/js/angular.min.js',
     '/js/app.js',
