@@ -1,11 +1,13 @@
 <?php
-
 // Require libraries needed for gateway module functions.
 require '../../../init.php';
 require '../../../includes/gatewayfunctions.php';
 require '../../../includes/invoicefunctions.php';
-
 require '../blockonomics/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 

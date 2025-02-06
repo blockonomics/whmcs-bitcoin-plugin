@@ -1,6 +1,10 @@
 <?php
-
 require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
+
 
 use Blockonomics\Blockonomics;
 
@@ -96,12 +100,10 @@ function blockonomics_config()
             settingsFieldArea.appendChild(settingsHeader);
 
             //Currency header
-           
 
             /**
-			 * Generate Advanced Settings Button
+			 * Generate Advanced Settings Button and get the HTML elements
 			 */
-            //get advanced settings HTML elements 
             const callbackUrl = blockonomicsTable.rows[7];
             const timePeriod = blockonomicsTable.rows[8];
             const extraMargin = blockonomicsTable.rows[9];
@@ -131,11 +133,11 @@ function blockonomics_config()
 
             let showingAdvancedSettings = false;
             /**
- * Get store name from Blockonomics API using API key and callback URL
- * 
- * @return string Store name or empty string if error
- */
-        
+             * Get store name from Blockonomics API using API key and callback URL
+             *
+             * @return string Store name or empty string if error
+             */
+
 			advancedLink.onclick = function() {
                 advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
                 if (showingAdvancedSettings) {
@@ -183,14 +185,6 @@ function blockonomics_config()
 
             buttonCell.appendChild(newBtn);
 
-            function handle_update_store_click(res, xhr, settings){
-                if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
-                    if (xhr.status == 200 && !sessionStorage.getItem("updateStore")) {
-                        updateStoreName();  
-                    }
-                }
-            }
-
             function handle_ajax_save(res, xhr, settings){
                 if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
                     // We detected the Blockonomics Request
@@ -201,7 +195,6 @@ function blockonomics_config()
                     // Do the Test
                     if (xhr.status == 200 && sessionStorage.getItem("runTest"))
                         doTest();
-                    
                     // Remove Test Session Key if exists
                     sessionStorage.removeItem("runTest");
                 }
@@ -234,7 +227,7 @@ function blockonomics_config()
             }
 
             function doTest() {
-                const form = new FormData(saveButtonCell.closest('form'));                
+                const form = new FormData(saveButtonCell.closest('form'));
                 // Remove any existing response div
                 const existingResponse = document.getElementById('blockonomics-test-response');
                 if (existingResponse) {
@@ -247,26 +240,26 @@ function blockonomics_config()
                 responseDiv.style.marginTop = '10px';
                 buttonCell.appendChild(responseDiv);
 
-                var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
+                var testSetupUrl = "$system_url";
+                if (!testSetupUrl.endsWith('/')) {
+                    testSetupUrl += '/';
+                }
+                testSetupUrl += "modules/gateways/blockonomics/testsetup.php";
 
                 try {
                     var systemUrlProtocol = new URL("$system_url").protocol;
                 } catch (err) {
-                    var systemUrlProtocol = '';
+                    console.error("Error parsing URL:", err);
                 }
 
                 if (systemUrlProtocol != location.protocol) {
                     responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label> 
                         $trans_text_protocol_fix`;
                 } else {
-                    let oReq = new XMLHttpRequest();
-                    oReq.addEventListener("load", function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.addEventListener("load", function() {
                         if(this.status != 200) {
-                            let status_code = this.status;
-                            let status_msg = this.statusText;
-                            const response = JSON.parse(this.responseText);
-                            responseDiv.innerHTML = '<label style="color:red;">Error: ' + (response.btc || 'An Error Occurred') + '. Status Code: ' + status_code + ' (' + status_msg + ')</label>' +
-                                '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
+                            responseDiv.innerHTML = '<label style="color:red;">Error: Network error occurred</label>';
                         } else {
                             try {
                                 const response = JSON.parse(this.responseText);
@@ -291,25 +284,23 @@ function blockonomics_config()
                                         '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
                                 }
                             } catch (err) {
-                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error ${testSetupUrl}. $trans_text_system_url_fix
-                                    <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                                console.error("Parse error:", err);
+                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error`;
                             }
-                            updateStoreName();
-                            sessionStorage.removeItem("updateStore");
                         }
                         newBtn.disabled = false;
                     });
 
-                    oReq.addEventListener("error", function(error) {
-                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.
-                            <br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>`;
+                    xhr.addEventListener("error", function(error) {
+                        console.error("XHR Error:", error);
+                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.`;
                         newBtn.disabled = false;
                     });
 
-                    oReq.open("GET", testSetupUrl);
+                    xhr.open("GET", testSetupUrl);
                     newBtn.disabled = true;
                     responseDiv.innerHTML = "$trans_text_testing";
-                    oReq.send();
+                    xhr.send();
                 }
             }
 
@@ -319,53 +310,6 @@ function blockonomics_config()
                 doTest()
             }
 
-            /**
-             * Check API key and update store name
-             */
-            const apiKeyInput = document.getElementsByName('field[ApiKey]')[0];
-            const storeNameField = document.getElementsByClassName('store-name-description')[0];
-
-            function updateStoreName() {
-                if (!apiKeyInput.value) {
-                    storeNameField.innerHTML = 'Enter API key to fetch store name';
-                    return;
-                }
-
-                // Show loading message
-                storeNameField.innerHTML = 'Loading store name...';
-
-                // Use local proxy to avoid CORS issues
-                var storesetupUrl = "$system_url" + "modules/gateways/blockonomics/storesetup.php";
-                fetch(storesetupUrl)
-                    .then(response => response.json())
-                    .then(response => {
-                        if (response.needs_store) {
-                            storeNameField.innerHTML = 'No stores found for this API key';
-                            return;
-                        }
-
-                        if (response.success && response.store_name) {
-                            storeNameField.innerHTML = response.store_name;
-                        } else {
-                            storeNameField.innerHTML = 'No matching store found for this callback URL';
-                        }
-                    })
-                    .catch(error => {
-                        storeNameField.innerHTML = 'Error fetching store information';
-                        console.error('Store fetch error:', error);
-                    });
-            }
-
-            updateStoreName();
-
-            // Update store name
-            if(typeof jQuery != 'undefined') {
-                jQuery(document).on('ajaxComplete', handle_update_store_click)
-            }
-
-            const apiKeyDesc = document.querySelector('.api-key-description');
-            apiKeyDesc.style.display = document.getElementsByName('field[ApiKey]')[0].value ? 'none' : 'inline';
-
 		</script>
 HTML;
         }
@@ -374,6 +318,7 @@ HTML;
     $blockonomics = new Blockonomics();
     include $blockonomics->getLangFilePath();
     $blockonomics->createOrderTableIfNotExist();
+
 
     $settings_array = [
         'FriendlyName' => [
@@ -390,11 +335,22 @@ HTML;
         'Description' => '<span class="api-key-description">' . $_BLOCKLANG['apiKey']['description'] . '</span>',
         'Type' => 'text',
     ];
-    $settings_array['StoreName'] = [
-        'FriendlyName' => 'Store Name',
-        'Description' => '<span class="store-name-description">Enter API key to fetch store name</span>',
-    ];
+    // Get current store name if it exists
+    $currentStoreName = null;
+    try {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $currentStoreName = $gatewayParams['StoreName'] ?? 'Your Blockonomics Store';
+    } catch (Exception $e) {
+        $currentStoreName = 'Your Blockonomics Store';
+    }
 
+    $settings_array['StoreName'] = [
+        'FriendlyName' => $_BLOCKLANG['storeName']['title'],
+        'Type' => 'text',
+        'Size' => '40',
+        'Value' => $currentStoreName ?: 'Your Blockonomics Store',
+        'ReadOnly' => true
+    ];
 
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],

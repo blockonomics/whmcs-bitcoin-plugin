@@ -1,7 +1,10 @@
 <?php
-
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 use WHMCS\ClientArea;

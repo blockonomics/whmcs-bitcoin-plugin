@@ -5,9 +5,12 @@
  * Then we delete the folders if they are empty
  * We also check if the screeshots folder and README.md file was installed and belongs to blockonomics so we can delete them too.
  */
-
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 
@@ -16,6 +19,18 @@ $blockonomics->checkAdmin();
 
 if (doubleval($blockonomics->getVersion()) < 1.9) {
     exit('Version 1.9 or higher must be installed before executing this upgrader.');
+}
+
+// Remove legacy convertto field from tblpaymentgateways table
+try {
+    if (Capsule::schema()->hasTable('tblpaymentgateways')) {
+        Capsule::table('tblpaymentgateways')
+            ->where('gateway', 'blockonomics')
+            ->where('setting', 'convertto')
+            ->delete();
+    }
+} catch (Exception $e) {
+    logActivity("Blockonomics upgrade warning: Could not remove legacy 'convertto' field: " . $e->getMessage());
 }
 
 // List of files to be deleted

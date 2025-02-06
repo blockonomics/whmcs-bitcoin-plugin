@@ -2,6 +2,9 @@
 
 namespace Blockonomics;
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 use Exception;
 use stdClass;
 use WHMCS\Database\Capsule;
@@ -12,14 +15,22 @@ class Blockonomics
 {
     private $version = '1.9.8';
 
-    const SET_CALLBACK_URL = 'https://stagingtest.blockonomics.co/api/update_callback';
-    const GET_CALLBACKS_URL = 'https://stagingtest.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const BASE_URL = 'https://stagingtest.blockonomics.co';
+    const BCH_BASE_URL = 'https://stagingtest.blockonomics.co';
 
-    const BCH_SET_CALLBACK_URL = 'https://bch.blockonomics.co/api/update_callback';
-    const BCH_GET_CALLBACKS_URL = 'https://bch.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
+    const WALLETS_URL = self::BASE_URL . '/api/v2/wallets';
+    const NEW_ADDRESS_URL = self::BASE_URL . '/api/new_address';
+    const PRICE_URL = self::BASE_URL . '/api/price';
 
-    private const BASE_URL = 'https://stagingtest.blockonomics.co/api';
-    private const BCH_BASE_URL = 'https://bch.blockonomics.co/api';
+    const BCH_PRICE_URL = self::BCH_BASE_URL . '/api/price';
+    const BCH_NEW_ADDRESS_URL = self::BCH_BASE_URL . '/api/new_address';
+
+    const SET_CALLBACK_URL = self::BASE_URL . '/api/update_callback';
+    const GET_CALLBACKS_URL = self::BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+
+    const BCH_SET_CALLBACK_URL = self::BCH_BASE_URL . '/api/update_callback';
+    const BCH_GET_CALLBACKS_URL = self::BCH_BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
     /*
      * Get the blockonomics version
@@ -225,8 +236,7 @@ class Blockonomics
     public function getNewAddress($currency = 'btc', $reset = false)
     {
         // Determine base URL based on currency
-        $base_url = ($currency == 'bch') ? self::BCH_BASE_URL : self::BASE_URL;
-        $url = $base_url . '/new_address';
+        $url = ($currency == 'bch') ? self::BCH_NEW_ADDRESS_URL : self::NEW_ADDRESS_URL;
 
         // Get the callback URL with secret
         $callback_secret = $this->getCallbackSecret();
@@ -317,13 +327,15 @@ class Blockonomics
                 $data = json_decode($contents);
                 $price = $data->{strtoupper($currency)};
             } else {
-                $subdomain = ($blockonomics_currency == 'btc') ? 'www' : $blockonomics_currency;
-                $url = 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency;
+                $url = ($blockonomics_currency == 'btc') ?
+                self::PRICE_URL . '?currency=' . $currency :
+                self::BCH_PRICE_URL . '?currency=' . $currency;
                 $contents = $this->fetchPrice($url);
                 $price = json_decode($contents)->price;
             }
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
+                // lower price means customers need to pay more BTC for the same fiat amount
                 $price = $price * 100 / (100 + $margin);
             }
         } catch (Exception $e) {
@@ -537,6 +549,11 @@ class Blockonomics
                 ]
             );
         } catch (Exception $e) {
+            // Check if it's a duplicate key error
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                exit("Duplicate address generation error. Note to website administrator: please contact Blockonomics support portal for assistance.");
+            }
+            // For other database errors, show a generic message
             exit("Unable to insert new order into blockonomics_orders: {$e->getMessage()}");
         }
         return true;
@@ -778,28 +795,78 @@ class Blockonomics
     {
         $test_results = array();
         $active_currencies = $this->getActiveCurrencies();
-        
+
         foreach ($active_currencies as $code => $currency) {
             $result = $this->test_one_currency($code);
 
             if (is_array($result) && isset($result['error'])) {
                 $test_results[$code] = $result['error'];
+                    // Clear store name on error
+                    try {
+                        Capsule::table('tblpaymentgateways')
+                            ->where('gateway', 'blockonomics')
+                            ->where('setting', 'StoreName')
+                            ->update(['value' => '']);
+                    } catch (Exception $e) {
+                        // Silently fail - not critical if store name clear fails
+                    }
             } else {
                 $test_results[$code] = $result;
                 if ($result === false) {
                     // Success case - get store data from API
                     $store_setup = $this->checkStoreSetup();
                     if (isset($store_setup['success'])) {
-                        $test_results['store_data'] = array(
-                            'name' => $store_setup['store_name'],
-                            'enabled_cryptos' => array_keys($active_currencies)
-                        );
+                        try {
+                            $gatewayParams = getGatewayVariables('blockonomics');
+                            $storeName = $gatewayParams['StoreName'];
+
+                            // Only update if store name has changed
+                            if (!isset($storeName) || $storeName !== $store_setup['store_name']) {
+                                Capsule::table('tblpaymentgateways')
+                                    ->updateOrInsert(
+                                        [
+                                            'gateway' => 'blockonomics',
+                                            'setting' => 'StoreName'
+                                        ],
+                                        [
+                                            'value' => $store_setup['store_name'],
+                                            'order' => 0
+                                        ]
+                                    );
+                                }
+                        } catch (Exception $e) {
+                            $test_results[$code] = "Failed to save store configuration";
+                        }
                     }
                 }
             }
         }
-        
         return $test_results;
+    }
+
+    private function checkWalletsExist()
+    {
+        $api_key = $this->getApiKey();
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . trim($api_key),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($http_code === 401) {
+            return false; // show the incorrect API key message
+        }
+
+        $response_data = json_decode($response);
+        return !empty($response_data->data);
     }
 
     public function test_one_currency($currency)
@@ -833,6 +900,29 @@ class Blockonomics
 
         if ($currency === 'bch') {
             return 'Test Setup only supports BTC';
+        }
+
+        // Check if api is correct and wallet is added
+        $wallet_check = $this->checkWalletsExist();
+        // If wallet check returns false, it could be either invalid API key (401) or no wallets
+        if (!$wallet_check) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . trim($api_key),
+                'Content-Type: application/json'
+            ]);
+
+            curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($http_code === 401) {
+                return $_BLOCKLANG['testSetup']['incorrectApi'];
+            }
+
+            return 'Please add a wallet on Blockonomics website';
         }
 
         // Get store setup from API
@@ -896,7 +986,7 @@ class Blockonomics
             ]);
 
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, 'https://stagingtest.blockonomics.co/api/v2/stores/' . $store_to_update->id);
+            curl_setopt($ch, CURLOPT_URL, self::BASE_URL . '/api/v2/stores/' . $store_to_update->id);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
@@ -1164,9 +1254,9 @@ class Blockonomics
     public function getStoreSetup() 
     {
         $api_key = $this->getApiKey();
-        
+
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://stagingtest.blockonomics.co/api/v2/stores?wallets=true');
+        curl_setopt($ch, CURLOPT_URL, self::STORES_URL);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -1179,7 +1269,19 @@ class Blockonomics
 
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
+        // Log the API call
+        logModuleCall(
+            'blockonomics',
+            'Get Store Setup - Request',
+            [
+                'url' => self::STORES_URL,
+                'headers' => $headers,
+                'method' => 'GET'
+            ],
+            null,
+            null,
+            [$api_key]
+        );
         // Check for cURL errors
         if (curl_errno($ch)) {
             $error = curl_error($ch);
@@ -1204,7 +1306,7 @@ class Blockonomics
     public function checkStoreSetup()
     {
         $response = json_decode($this->getStoreSetup());
-        
+
         // Check if we got a valid response with stores data
         if (!isset($response->data) || empty($response->data)) {
             return array('needs_store' => true);
