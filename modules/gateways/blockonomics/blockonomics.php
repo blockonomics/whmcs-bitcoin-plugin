@@ -16,7 +16,7 @@ class Blockonomics
     private $version = '1.9.8';
 
     const BASE_URL = 'https://stagingtest.blockonomics.co';
-    const BCH_BASE_URL = 'https://stagingtest.blockonomics.co';
+    const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
     const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
     const WALLETS_URL = self::BASE_URL . '/api/v2/wallets';
