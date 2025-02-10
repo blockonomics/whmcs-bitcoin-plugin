@@ -399,17 +399,18 @@ HTML;
     ];
     $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
     foreach ($blockonomics_currencies as $code => $currency) {
-        if ($code != 'btc') {
+        if ($code == 'bch') {
             $settings_array[$code . 'Enabled'] = [
                 'FriendlyName' => $_BLOCKLANG['enabled'][$code.'_title'],
                 'Type' => 'yesno', 
                 'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
             ];
         }
-        if ($code == 'btc') {
-            $settings_array[$code . 'Enabled']['Default'] = true;
+        if ($code !== 'bch') {
+            $settings_array[$code . 'Enabled']['Default'] = 'on';
         }
     }
+    error_log("Settings array: " . print_r($settings_array, true));
     return $settings_array;
 }
 

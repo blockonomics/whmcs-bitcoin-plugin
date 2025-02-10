@@ -794,53 +794,96 @@ class Blockonomics
     public function testSetup()
     {
         $test_results = array();
+        $blockonomics_currencies = $this->getSupportedCurrencies();
         $active_currencies = $this->getActiveCurrencies();
+        $active_currencies['usdt'] = $blockonomics_currencies['usdt'];
+
+        $gatewayParams = getGatewayVariables('blockonomics');
+        error_log("Gateway params: " . print_r($gatewayParams, true));
 
         foreach ($active_currencies as $code => $currency) {
             $result = $this->test_one_currency($code);
 
             if (is_array($result) && isset($result['error'])) {
                 $test_results[$code] = $result['error'];
-                    // Clear store name on error
-                    try {
-                        Capsule::table('tblpaymentgateways')
-                            ->where('gateway', 'blockonomics')
-                            ->where('setting', 'StoreName')
-                            ->update(['value' => '']);
-                    } catch (Exception $e) {
-                        // Silently fail - not critical if store name clear fails
-                    }
+                error_log("Test failed for $code: " . $result['error']);
+
+                // if code is usdt, then set usdtneabled to false in gateway params
+                if ($code == 'usdt') {
+                    error_log("Setting usdtEnabled to false");
+                    Capsule::table('tblpaymentgateways')
+                        ->updateOrInsert(
+                            [
+                                'gateway' => 'blockonomics',
+                                'setting' => 'usdtEnabled'
+                            ],
+                            ['value' => '']
+                        );
+                }
             } else {
                 $test_results[$code] = $result;
                 if ($result === false) {
-                    // Success case - get store data from API
-                    $store_setup = $this->checkStoreSetup();
-                    if (isset($store_setup['success'])) {
-                        try {
-                            $gatewayParams = getGatewayVariables('blockonomics');
-                            $storeName = $gatewayParams['StoreName'];
+                    error_log("Test succeeded for $code");
 
-                            // Only update if store name has changed
-                            if (!isset($storeName) || $storeName !== $store_setup['store_name']) {
-                                Capsule::table('tblpaymentgateways')
-                                    ->updateOrInsert(
-                                        [
-                                            'gateway' => 'blockonomics',
-                                            'setting' => 'StoreName'
-                                        ],
-                                        [
-                                            'value' => $store_setup['store_name'],
-                                            'order' => 0
-                                        ]
-                                    );
-                                }
-                        } catch (Exception $e) {
-                            $test_results[$code] = "Failed to save store configuration";
-                        }
+                    
+                    if ($code == 'usdt') {
+                        Capsule::table('tblpaymentgateways')
+                            ->updateOrInsert(
+                                [
+                                    'gateway' => 'blockonomics',
+                                    'setting' => 'usdtEnabled'
+                                ],
+                                [
+                                    'value' => 'on'
+                                ]
+                            );
                     }
                 }
             }
         }
+        // If btc or usdt is Successfull - get store data from API
+        if (
+            (isset($test_results['btc']) && $test_results['btc'] === false) ||
+            (isset($test_results['usdt']) && $test_results['usdt'] === false)
+        ) {
+            $store_setup = $this->checkStoreSetup();
+            if (isset($store_setup['success'])) {
+                try {
+                    
+                    $storeName = $gatewayParams['StoreName'];
+
+                    // Only update if store name has changed
+                    if (!isset($storeName) || $storeName !== $store_setup['store_name']) {
+                        error_log("Updating store name to: " . $store_setup['store_name']);
+                        Capsule::table('tblpaymentgateways')
+                            ->updateOrInsert(
+                                [
+                                    'gateway' => 'blockonomics',
+                                    'setting' => 'StoreName'
+                                ],
+                                [
+                                    'value' => $store_setup['store_name'],
+                                    'order' => 0
+                                ]
+                            );
+                    }
+                } catch (Exception $e) {
+                    $test_results[$code] = "Failed to save store configuration";
+                    error_log("Failed to save store configuration: " . $e->getMessage());
+                }
+            }
+        } else {
+            // Clear store name on error if code is btc
+            try {
+                Capsule::table('tblpaymentgateways')
+                    ->where('gateway', 'blockonomics')
+                ->where('setting', 'StoreName')
+                ->update(['value' => '']);
+            } catch (Exception $e) {
+                error_log("Failed to clear store name: " . $e->getMessage());
+            }
+        }
+
         return $test_results;
     }
 
@@ -862,11 +905,14 @@ class Blockonomics
         curl_close($ch);
 
         if ($http_code === 401) {
+            error_log("Wallet check failed: Invalid API key (401)");
             return false; // show the incorrect API key message
         }
 
         $response_data = json_decode($response);
-        return !empty($response_data->data);
+        $has_wallets = !empty($response_data->data);
+        error_log("Store response: " . print_r($response_data, true));
+        return $has_wallets;
     }
 
     public function test_one_currency($currency)
@@ -899,7 +945,7 @@ class Blockonomics
         }
 
         if ($currency === 'bch') {
-            return 'Test Setup only supports BTC';
+            return 'Test Setup only supports BTC & USDT';
         }
 
         // Check if api is correct and wallet is added
