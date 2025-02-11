@@ -408,7 +408,6 @@ HTML;
             $settings_array[$code . 'Enabled']['Default'] = 'on';
         }
     }
-    error_log("Settings array: " . print_r($settings_array, true));
     return $settings_array;
 }
 

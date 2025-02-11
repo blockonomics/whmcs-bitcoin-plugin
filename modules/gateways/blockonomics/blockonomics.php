@@ -799,18 +799,14 @@ class Blockonomics
         $active_currencies['usdt'] = $blockonomics_currencies['usdt'];
 
         $gatewayParams = getGatewayVariables('blockonomics');
-        error_log("Gateway params: " . print_r($gatewayParams, true));
 
         foreach ($active_currencies as $code => $currency) {
             $result = $this->test_one_currency($code);
 
             if (is_array($result) && isset($result['error'])) {
                 $test_results[$code] = $result['error'];
-                error_log("Test failed for $code: " . $result['error']);
-
                 // if code is usdt, then set usdtneabled to false in gateway params
                 if ($code == 'usdt') {
-                    error_log("Setting usdtEnabled to false");
                     Capsule::table('tblpaymentgateways')
                         ->updateOrInsert(
                             [
@@ -823,9 +819,6 @@ class Blockonomics
             } else {
                 $test_results[$code] = $result;
                 if ($result === false) {
-                    error_log("Test succeeded for $code");
-
-                    
                     if ($code == 'usdt') {
                         Capsule::table('tblpaymentgateways')
                             ->updateOrInsert(
@@ -854,7 +847,6 @@ class Blockonomics
 
                     // Only update if store name has changed
                     if (!isset($storeName) || $storeName !== $store_setup['store_name']) {
-                        error_log("Updating store name to: " . $store_setup['store_name']);
                         Capsule::table('tblpaymentgateways')
                             ->updateOrInsert(
                                 [
@@ -869,7 +861,6 @@ class Blockonomics
                     }
                 } catch (Exception $e) {
                     $test_results[$code] = "Failed to save store configuration";
-                    error_log("Failed to save store configuration: " . $e->getMessage());
                 }
             }
         } else {
@@ -880,7 +871,6 @@ class Blockonomics
                 ->where('setting', 'StoreName')
                 ->update(['value' => '']);
             } catch (Exception $e) {
-                error_log("Failed to clear store name: " . $e->getMessage());
             }
         }
 
@@ -905,13 +895,11 @@ class Blockonomics
         curl_close($ch);
 
         if ($http_code === 401) {
-            error_log("Wallet check failed: Invalid API key (401)");
             return false; // show the incorrect API key message
         }
 
         $response_data = json_decode($response);
         $has_wallets = !empty($response_data->data);
-        error_log("Store response: " . print_r($response_data, true));
         return $has_wallets;
     }
 
