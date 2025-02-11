@@ -147,7 +147,6 @@ function blockonomics_config()
                     underSlack.style.display = "none";
                     confirmations.style.display = "none";
                     bchcurrencySettings.style.display = "none";
-                    usdtcurrencySettings.style.display = "none";
                 } else {
                     callbackUrl.style.display = "table-row";
                     timePeriod.style.display = "table-row";
@@ -155,7 +154,6 @@ function blockonomics_config()
                     underSlack.style.display = "table-row";
                     confirmations.style.display = "table-row";
                     bchcurrencySettings.style.display = "table-row";
-                    usdtcurrencySettings.style.display = "table-row";
                 }
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
@@ -278,7 +276,9 @@ function blockonomics_config()
                                 if (response.usdt === false) {
                                     responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') + 
                                         `<label style='color:green;'>$trans_text_success_usdt</label>`;
+                                    usdtcurrencySettings.querySelector('input[type="checkbox"]').checked = true;
                                 } else if (response.usdt) {
+                                    usdtcurrencySettings.querySelector('input[type="checkbox"]').checked = false;
                                     responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') +
                                         '<label style="color:red;"> USDT: ' + response.usdt + '</label>' +
                                         '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
@@ -399,14 +399,12 @@ HTML;
     ];
     $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
     foreach ($blockonomics_currencies as $code => $currency) {
-        if ($code == 'bch') {
-            $settings_array[$code . 'Enabled'] = [
-                'FriendlyName' => $_BLOCKLANG['enabled'][$code.'_title'],
-                'Type' => 'yesno', 
-                'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
-            ];
-        }
-        if ($code !== 'bch') {
+        $settings_array[$code . 'Enabled'] = [
+            'FriendlyName' => $_BLOCKLANG['enabled'][$code.'_title'],
+            'Type' => 'yesno', 
+            'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
+        ];
+        if ($code == 'btc') {
             $settings_array[$code . 'Enabled']['Default'] = 'on';
         }
     }
