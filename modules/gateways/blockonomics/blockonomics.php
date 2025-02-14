@@ -303,16 +303,33 @@ class Blockonomics
         return $gatewayParams['Margin'];
     }
 
-    private function fetchPrice($url) {
+    /*
+     * Make a generic HTTP GET request with optional headers
+     */
+    private function makeGetRequest($url, $headers = []) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        $contents = curl_exec($ch);
-        if (curl_errno($ch)) {
-            exit('Error:' . curl_error($ch));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        if (!empty($headers)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Error: ' . $error);
+        }
+        
         curl_close($ch);
-        return $contents;
+        
+        return [
+            'response' => $response,
+            'http_code' => $http_code
+        ];
     }
 
     /*
@@ -323,16 +340,17 @@ class Blockonomics
         try {
             if ($blockonomics_currency === 'usdt') {
                 $url = 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency;
-                $contents = $this->fetchPrice($url);
-                $data = json_decode($contents);
+                $result = $this->makeGetRequest($url);
+                $data = json_decode($result['response']);
                 $price = $data->{strtoupper($currency)};
             } else {
                 $url = ($blockonomics_currency == 'btc') ?
-                self::PRICE_URL . '?currency=' . $currency :
-                self::BCH_PRICE_URL . '?currency=' . $currency;
-                $contents = $this->fetchPrice($url);
-                $price = json_decode($contents)->price;
+                    self::PRICE_URL . '?currency=' . $currency :
+                    self::BCH_PRICE_URL . '?currency=' . $currency;
+                $result = $this->makeGetRequest($url);
+                $price = json_decode($result['response'])->price;
             }
+
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
                 // lower price means customers need to pay more BTC for the same fiat amount
@@ -1379,11 +1397,67 @@ class Blockonomics
 
         $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
 
-        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency['name'] . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
-        $blockonomics_currency['name'] . " transaction id:\r" .
-            '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+        // Get callback URL for monitoring
+        $callback_secret = $this->getCallbackSecret();
+        $callback_url = $this->getCallbackUrl($callback_secret);
 
-        $this->updateOrderInDb($order->addr, $txhash, 0, 0);
-        $this->updateInvoiceNote($invoiceId, $invoiceNote);
+        // Prepare monitoring request
+        $monitor_url = self::BASE_URL . '/api/monitor_tx';
+        $post_data = array(
+            'txhash' => $txhash,
+            'crypto' => strtoupper($crypto),
+            'match_callback' => $callback_url,
+            'testnet' => '1'  // Remove this in production
+        );
+
+        try {
+            $headers = [
+                'Authorization: Bearer ' . $this->getApiKey(),
+                'Content-Type: application/json'
+            ];
+            
+            $result = $this->makePostRequest($monitor_url, $post_data, $headers);
+            
+            // Update invoice note
+            $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency['name'] . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
+            $blockonomics_currency['name'] . " transaction id:\r" .
+                '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+
+            $this->updateOrderInDb($order->addr, $txhash, 0, 0);
+            $this->updateInvoiceNote($invoiceId, $invoiceNote);
+        } catch (Exception $e) {
+            exit("Error processing token order: {$e->getMessage()}");
+        }
+    }
+
+    /*
+     * Make a generic HTTP POST request with JSON data and optional headers
+     */
+    private function makePostRequest($url, $data, $headers = []) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        
+        if (!empty($headers)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        }
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Error: ' . $error);
+        }
+        
+        curl_close($ch);
+        
+        return [
+            'response' => $response,
+            'http_code' => $http_code
+        ];
     }
 }
