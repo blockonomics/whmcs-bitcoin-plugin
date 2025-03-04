@@ -15,7 +15,7 @@ class Blockonomics
 {
     private $version = '1.9.8';
 
-    const BASE_URL = 'https://stagingtest.blockonomics.co';
+    const BASE_URL = 'https://www.blockonomics.co/';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
     const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
@@ -1416,7 +1416,7 @@ class Blockonomics
                 'Content-Type: application/json'
             ];
             
-            $result = $this->makePostRequest($monitor_url, $post_data, $headers);
+            $this->makePostRequest($monitor_url, $post_data, $headers);
             
             // Update invoice note
             $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency['name'] . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .

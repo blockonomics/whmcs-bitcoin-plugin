@@ -396,15 +396,157 @@ svg {
 }
 
 #web3-payment {
-  width: 300px;
+  width: 400px;
   margin: auto;
+  margin-bottom: 16px;
 }
+
+#web3-payment svg {
+  margin: 0;
+  width: auto;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
 #web3-payment button {
   width: 100%;
-  height: 32px;
-  background-color: blue;
-  color: white;
+  height: 40px;
+  background-color: #40C381;
+  color: #000000;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 12px;
   border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+}
+
+#web3-payment button[disabled] {
+  border: 1px solid #F1760F;
+  background-color: transparent;
+  color: #768B80;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+#web3-payment .steps-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  gap: 170px;
+  margin-top: 41px;
+}
+
+#web3-payment .step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 14px;
+  position: relative;
+  z-index: 2;
+  border: 4px solid #e0e0e0;
+  color: #666;
+}
+
+#web3-payment .step:first-child::before,
+#web3-payment .step:nth-child(2)::before,
+#web3-payment .step:first-child::after,
+#web3-payment .step:nth-child(2)::after {
+  content: '';
+  position: absolute;
+  width: 85px;
+  height: 4px;
+  background: #e0e0e0;
+  z-index: -1;
+  transition: background 0.3s ease;
+}
+
+#web3-payment .step:first-child::before,
+#web3-payment .step:nth-child(2)::before {
+  left: -85px;
+}
+
+#web3-payment .step:first-child::after,
+#web3-payment .step:nth-child(2)::after {
+  right: -85px;
+}
+
+#web3-payment .step.active::before,
+#web3-payment .step.active::after {
+  background: #20c997;
+}
+
+#web3-payment .step-text {
+  position: absolute;
+  top: -30px;
+  white-space: nowrap;
+  font-weight: bold;
+  color: #666;
+}
+
+#web3-payment .step.active {
+  border: 4px solid #20c997;
+  color: #000;
+  font-weight: bold;
+}
+
+#web3-payment .step.active .step-text {
+  color: #000;
+}
+
+#web3-payment .error {
+  color: #CF3310;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.input-group {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-label {
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.wallet-address,
+.network-address {
+  border-radius: 8px;
+  padding: 8px 8px;
+  display: block;
+  margin-top: 0.25rem;
+  width: 100%;
+  height: 40px;
+  background-color: #f5f5f5;
+  border: 1px solid #768B80;
+}
+
+.connection-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  background-color: #B7ECD1;
+  color: #000000;
+  line-height: 10px;
+}
+
+.status-circle {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #40C381;
 }
