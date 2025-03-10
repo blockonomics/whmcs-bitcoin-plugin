@@ -60,7 +60,7 @@ $confirmations = $blockonomics->getConfirmations();
 $blockonomics_currency_code = $order['blockonomics_currency'];
 $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$blockonomics_currency_code];
 if ($blockonomics_currency_code == 'btc' || $blockonomics_currency_code == 'usdt') {
-    $subdomain = 'stagingtest';
+    $subdomain = 'www';
 } else {
     $subdomain = $blockonomics_currency_code;
 }

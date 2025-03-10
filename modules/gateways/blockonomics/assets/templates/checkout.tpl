@@ -1,6 +1,6 @@
 <link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css">
 {if $crypto['code'] eq 'usdt'}
-<script type="text/javascript" src="https://stagingtest.blockonomics.co/js/web3-payment.js"></script>
+<script type="text/javascript" src="https://www.blockonomics.co/js/web3-payment.js"></script>
 {/if}
 
 <div id="blockonomics_checkout">

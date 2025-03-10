@@ -179,7 +179,7 @@ class Blockonomics {
         var ws = new ReconnectingWebSocket(
             'wss://' +
                 (this.data.crypto.code == 'btc' || this.data.crypto.code == 'usdt'
-                    ? 'stagingtest'
+                    ? 'www'
                     : this.data.crypto.code) +
                 '.blockonomics.co/payment/' +
                 this.data.crypto_address
