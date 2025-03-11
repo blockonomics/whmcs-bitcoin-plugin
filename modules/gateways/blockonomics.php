@@ -262,27 +262,8 @@ function blockonomics_config()
                             try {
                                 const response = JSON.parse(this.responseText);
                                 
-                                responseDiv.innerHTML = '';
+                                responseDiv.innerHTML = response;
 
-                                // Handle BTC response
-                                if (response.btc === false) {
-                                    responseDiv.innerHTML += `<label style='color:green;'>$trans_text_success_btc</label>`;
-                                } else if (response.btc) {
-                                    responseDiv.innerHTML += '<label style="color:red;"> BTC:' + response.btc + '</label>' +
-                                        '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
-                                }
-
-                                // Handle USDT response separately
-                                if (response.usdt === false) {
-                                    responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') + 
-                                        `<label style='color:green;'>$trans_text_success_usdt</label>`;
-                                    usdtcurrencySettings.querySelector('input[type="checkbox"]').checked = true;
-                                } else if (response.usdt) {
-                                    usdtcurrencySettings.querySelector('input[type="checkbox"]').checked = false;
-                                    responseDiv.innerHTML += (responseDiv.innerHTML ? '<br>' : '') +
-                                        '<label style="color:red;"> USDT: ' + response.usdt + '</label>' +
-                                        '<br>For more information, please consult <a href="https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address" target="_blank">this troubleshooting article</a>';
-                                }
                             } catch (err) {
                                 console.error("Parse error:", err);
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error`;

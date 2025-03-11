@@ -12,5 +12,5 @@ use Blockonomics\Blockonomics;
 $blockonomics = new Blockonomics();
 $blockonomics->checkAdmin();
 
-$error = $blockonomics->testSetup();
-echo json_encode($error);
+$result = $blockonomics->testSetup();
+echo json_encode($result);
