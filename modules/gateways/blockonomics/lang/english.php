@@ -73,7 +73,7 @@ $_BLOCKLANG['testSetup']['testing'] = 'Testing setup...';
 $_BLOCKLANG['testSetup']['blockedHttps'] = 'Your server is blocking outgoing HTTPS calls';
 $_BLOCKLANG['testSetup']['emptyApi'] = 'API Key is not set. Please enter your API Key.';
 $_BLOCKLANG['testSetup']['incorrectApi'] = 'API Key is incorrect';
-$_BLOCKLANG['testSetup']['addStore'] = 'Please add a new <a href="https://www.blockonomics.co/dashboard#/store" target="_blank">store</a> on blockonomics website';
+$_BLOCKLANG['testSetup']['addStore'] = 'Please add a <a href="https://www.blockonomics.co/dashboard#/store" target="_blank"><i>Store</i></a> on Blockonomics Dashboard';
 $_BLOCKLANG['testSetup']['addWallet'] = 'Please add a wallet';
 $_BLOCKLANG['testSetup']['invalidResponse'] = 'Invalid response was received. Please retry.';
 $_BLOCKLANG['testSetup']['noCrypto'] = 'No crypto enabled on Store';
