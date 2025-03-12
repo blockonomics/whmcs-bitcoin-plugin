@@ -824,8 +824,7 @@ class Blockonomics
 
         // check if API key is empty
         if (empty($api_key)) {
-            $result['error'] = $_BLOCKLANG['testSetup']['emptyApi'];
-            return $result;
+            return $_BLOCKLANG['testSetup']['emptyApi'];
         }
         //Make API call to get wallets and also consequently check if API key is valid
         $ch = curl_init();
@@ -838,10 +837,10 @@ class Blockonomics
         ]);
 
         $response = curl_exec($ch);
+
         // check network level errors like CORS, connection failure
         if (curl_errno($ch)) {
             $error = curl_error($ch);
-            //$result['error'] = $_BLOCKLANG['testSetup']['blockedHttps'] . ': ' . $error;
             $result['error'] = $_BLOCKLANG['testSetup']['blockedHttps'];
             curl_close($ch);
             return $result;
@@ -849,10 +848,8 @@ class Blockonomics
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        // Handle API response
         if ($http_code === 401) {
-            $result['error'] = $_BLOCKLANG['testSetup']['incorrectApi'];
-            return $result;
+            return $_BLOCKLANG['testSetup']['incorrectApi'];
         }
 
         if ($http_code !== 200) {
@@ -865,8 +862,7 @@ class Blockonomics
 
         // Check if response is valid JSON
         if (!$response_data) {
-            $result['error'] = $_BLOCKLANG['testSetup']['invalidResponse'];
-            return $result;
+            return $_BLOCKLANG['testSetup']['invalidResponse'];
         }
 
         // API key is valid at this point
@@ -886,7 +882,7 @@ class Blockonomics
 
         // If no wallets configured
         if (empty($result['wallets'])) {
-            $result['error'] = $_BLOCKLANG['testSetup']['addWallet'];
+            return $_BLOCKLANG['testSetup']['addWallet'];
         }
 
         return $result;
@@ -908,7 +904,7 @@ class Blockonomics
             return $_BLOCKLANG['testSetup']['emptyApi'];
         }
 
-        // CHeck configured wallets and validate API key
+        // Check configured wallets and validate API key
         $wallet_result = $this->get_wallets();
         // If API key is invalid or any other error, return error
         if (!$wallet_result['is_valid']) {
@@ -987,7 +983,7 @@ class Blockonomics
                 if ($response_code !== 200) {
                     return "Could not update store callback";
                 }
-                
+
                 $store_to_use = $store_to_update;
             } else {
                 return $_BLOCKLANG['testSetup']['addStore'];
@@ -1034,16 +1030,16 @@ class Blockonomics
             return $_BLOCKLANG['testSetup']['noCrypto'];
         }
 
-
         // STEP 6: Test Address Generation for each enabled crypto
         $success_messages = array();
         $error_messages = array();
-        // $active_currencies = $this->getActiveCurrencies();
+
+        $active_currencies = $this->getActiveCurrencies();
 
         // Test each enabled crypto that's also active in WHMCS
-        foreach ($active_currencies as $code => $currency) {
-            // Skip if not enabled on store
-            if (!in_array($code, $enabled_cryptos)) {
+        foreach ($enabled_cryptos as $code) {
+            // Skip if not active in WHMCS
+            if (!isset($active_currencies[$code])) {
                 continue;
             }
 
