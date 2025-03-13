@@ -139,7 +139,6 @@ class Blockonomics
     {
         $active_currencies = [];
         $blockonomics_currencies = $this->getSupportedCurrencies();
-        $active_currencies['btc'] = $blockonomics_currencies['btc'];
         
         foreach ($blockonomics_currencies as $code => $currency) {
             $gatewayParams = getGatewayVariables('blockonomics');
