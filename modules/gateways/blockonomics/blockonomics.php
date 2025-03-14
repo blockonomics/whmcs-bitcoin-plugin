@@ -182,8 +182,8 @@ class Blockonomics
             return $enabled_cryptos;
         }
 
-        $callback_secret = $this->getCallbackSecret();
-        $callback_url = $this->getCallbackUrl($callback_secret);
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
 
         // Find the best matching store
         $store_to_use = $this->findMatchingStore($stores_response->data, $callback_url);
@@ -236,7 +236,8 @@ class Blockonomics
         }
 
         // Return best available match
-        return $partial_match_store ?: $store_without_callback;
+        $result = $partial_match_store ?: $store_without_callback;
+        return $result;
     }
 
     /**
@@ -428,9 +429,9 @@ class Blockonomics
         // Determine base URL based on currency
         $url = ($currency == 'bch') ? self::BCH_NEW_ADDRESS_URL : self::NEW_ADDRESS_URL;
 
-        // Get the callback URL with secret
-        $callback_secret = $this->getCallbackSecret();
-        $callback_url = $this->getCallbackUrl($callback_secret);
+        // Get the callback URL from gateway cache
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
 
         // Build query parameters
         $params = array();
@@ -1092,7 +1093,6 @@ class Blockonomics
         include $this->getLangFilePath();
 
         $api_key = $this->getApiKey();
-        $gatewayParams = getGatewayVariables('blockonomics');
         if (empty($api_key)) {
             return $_BLOCKLANG['testSetup']['emptyApi'];
         }
@@ -1120,8 +1120,8 @@ class Blockonomics
         if (empty($stores_response->data)) {
             return $_BLOCKLANG['testSetup']['addStore'];
         }
-
-        $callback_url = $gatewayParams['CallbackUrl'];
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
 
         $matching_store = $this->findMatchingStore($stores_response->data, $callback_url);
         if (!$matching_store) {
