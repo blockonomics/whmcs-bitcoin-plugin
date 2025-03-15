@@ -1257,9 +1257,26 @@ class Blockonomics
         $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
 
         $order = $this->processOrderHash($show_order, $crypto);
-        $active_cryptos = $this->getActiveCurrencies();
+        $active_cryptos = $this->getCheckoutCurrencies();
 
-        $crypto = $active_cryptos[$crypto];
+        if (is_string($crypto) && isset($active_cryptos[$crypto])) {
+            // If $crypto is a string key, get the full crypto object
+            $crypto = $active_cryptos[$crypto];
+        } else if (is_string($crypto)) {
+            // If $crypto is a string but not found in active_cryptos,
+            // create a basic crypto object with the necessary fields
+            $supported_currencies = $this->getSupportedCurrencies();
+            if (isset($supported_currencies[$crypto])) {
+                $crypto = $supported_currencies[$crypto];
+            } else {
+                // Fallback to a basic structure if the crypto isn't in supported currencies
+                $crypto = [
+                    'code' => $crypto,
+                    'name' => strtoupper($crypto),
+                    'uri' => $crypto
+                ];
+            }
+        }
 
         $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
         
