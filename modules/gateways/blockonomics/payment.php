@@ -40,7 +40,7 @@ if($crypto === "empty"){
     $blockonomics->load_checkout_template($ca, $show_order, $crypto);
 }else if ($select_crypto) {
     $blockonomics->load_blockonomics_template($ca, 'crypto_options', array(
-        "cryptos" => $blockonomics->getActiveCurrencies(),
+        "cryptos" => $blockonomics->getCheckoutCurrencies(),
         "order_hash" => $select_crypto
     ));
 }else if ($finish_order) {
