@@ -1405,7 +1405,7 @@ class Blockonomics
             'txhash' => $txhash,
             'crypto' => strtoupper($crypto),
             'match_callback' => $callback_url,
-            'testnet' => '1'  // Remove this in production
+            //'testnet' => '1'  // Remove this in production
         );
 
         try {
