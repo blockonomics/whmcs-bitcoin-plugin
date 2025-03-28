@@ -327,10 +327,8 @@ HTML;
 
     $settings_array['StoreName'] = [
         'FriendlyName' => $_BLOCKLANG['storeName']['title'],
-        'Type' => 'text',
-        'Size' => '40',
-        'Value' => $currentStoreName ?: 'Your Blockonomics Store',
-        'ReadOnly' => true
+        'Type' => 'label',
+        'Description' => $currentStoreName ?: 'Your Blockonomics Store',
     ];
 
     $settings_array['CallbackSecret'] = [
