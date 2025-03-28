@@ -1279,7 +1279,8 @@ class Blockonomics
         }
 
         $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
-        
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $checkoutMode = $gatewayParams['CheckoutMode'] ?? 'mainnet';
         $context = array(
             'time_period' => $time_period,
             'order' => $order,
@@ -1287,7 +1288,8 @@ class Blockonomics
             'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $order_amount,
             'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount),
-            'crypto' => $crypto
+            'crypto' => $crypto,
+            'is_testnet' => ($checkoutMode === 'testnet')
         );
 
         if ($order->blockonomics_currency === 'usdt') {
@@ -1398,6 +1400,8 @@ class Blockonomics
         // Get callback URL for monitoring
         $callback_secret = $this->getCallbackSecret();
         $callback_url = $this->getCallbackUrl($callback_secret);
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $checkoutMode = $gatewayParams['CheckoutMode'] ?? 'mainnet';
 
         // Prepare monitoring request
         $monitor_url = self::BASE_URL . '/api/monitor_tx';
@@ -1405,7 +1409,7 @@ class Blockonomics
             'txhash' => $txhash,
             'crypto' => strtoupper($crypto),
             'match_callback' => $callback_url,
-            //'testnet' => '1'  // Remove this in production
+            'network' => ($checkoutMode === 'testnet') ? 'testnet' : 'mainnet',
         );
 
         try {
