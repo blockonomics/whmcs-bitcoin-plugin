@@ -382,7 +382,6 @@ HTML;
             'testnet' => $_BLOCKLANG['checkoutMode']['testnet'],
         ],
         'Default' => 'mainnet',
-        'Description' => $_BLOCKLANG['checkoutMode']['description'],
     ];
     $settings_array['bchEnabled'] = [
         'FriendlyName' => $_BLOCKLANG['enabled']['bch_title'],

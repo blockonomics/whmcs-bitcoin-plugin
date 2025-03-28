@@ -61,6 +61,9 @@ $_BLOCKLANG['slack']['description'] = 'Allow payments that are off by a small pe
 $_BLOCKLANG['confirmations']['title'] = 'Confirmations';
 $_BLOCKLANG['confirmations']['description'] = 'Network Confirmations required for payment to complete';
 $_BLOCKLANG['confirmations']['recommended'] = 'recommended';
+$_BLOCKLANG['checkoutMode']['title'] = 'USDT Checkout Mode';
+$_BLOCKLANG['checkoutMode']['mainnet'] = 'Production (Ethereum Mainnet)';
+$_BLOCKLANG['checkoutMode']['testnet'] = 'Sandbox (Sepolia Testnet)';
 
 // Test Setup
 $_BLOCKLANG['testSetup']['systemUrl']['error'] = 'Unable to locate/execute';
