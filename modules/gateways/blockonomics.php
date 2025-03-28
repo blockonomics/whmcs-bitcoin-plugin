@@ -99,8 +99,6 @@ function blockonomics_config()
             settingsHeader.textContent = 'Settings';
             settingsFieldArea.appendChild(settingsHeader);
 
-            //Currency header
-
             /**
 			 * Generate Advanced Settings Button and get the HTML elements
 			 */
@@ -109,18 +107,16 @@ function blockonomics_config()
             const extraMargin = blockonomicsTable.rows[9];
             const underSlack = blockonomicsTable.rows[10];
             const confirmations = blockonomicsTable.rows[11];
-            const btccurrencySettings = blockonomicsTable.rows[12];
+            const checkoutMode = blockonomicsTable.rows[12];
             const bchcurrencySettings = blockonomicsTable.rows[13];
-            const usdtcurrencySettings = blockonomicsTable.rows[14];
 
             callbackUrl.style.display = "none";
             timePeriod.style.display = "none";
             extraMargin.style.display = "none";
             underSlack.style.display = "none";
             confirmations.style.display = "none";
-            btccurrencySettings.style.display = "none";
+            checkoutMode.style.display = "none";
             bchcurrencySettings.style.display = "none";
-            usdtcurrencySettings.style.display = "none";
 
             var advancedSettingsRow = blockonomicsTable.insertRow(7);
 			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
@@ -146,6 +142,7 @@ function blockonomics_config()
                     extraMargin.style.display = "none";
                     underSlack.style.display = "none";
                     confirmations.style.display = "none";
+                    checkoutMode.style.display = "none";
                     bchcurrencySettings.style.display = "none";
                 } else {
                     callbackUrl.style.display = "table-row";
@@ -153,6 +150,7 @@ function blockonomics_config()
                     extraMargin.style.display = "table-row";
                     underSlack.style.display = "table-row";
                     confirmations.style.display = "table-row";
+                    checkoutMode.style.display = "table-row";
                     bchcurrencySettings.style.display = "table-row";
                 }
                 showingAdvancedSettings = !showingAdvancedSettings;
@@ -320,15 +318,15 @@ HTML;
     $currentStoreName = null;
     try {
         $gatewayParams = getGatewayVariables('blockonomics');
-        $currentStoreName = $gatewayParams['StoreName'] ?? 'Your Blockonomics Store';
+        $currentStoreName = $gatewayParams['StoreName'] ?? '';
     } catch (Exception $e) {
-        $currentStoreName = 'Your Blockonomics Store';
+        $currentStoreName = '';
     }
 
     $settings_array['StoreName'] = [
         'FriendlyName' => $_BLOCKLANG['storeName']['title'],
         'Type' => 'label',
-        'Description' => $currentStoreName ?: 'Your Blockonomics Store',
+        'Description' => $currentStoreName,
     ];
 
     $settings_array['CallbackSecret'] = [
@@ -376,17 +374,22 @@ HTML;
         ],
         'Description' => $_BLOCKLANG['confirmations']['description'],
     ];
-    $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
-    foreach ($blockonomics_currencies as $code => $currency) {
-        $settings_array[$code . 'Enabled'] = [
-            'FriendlyName' => $_BLOCKLANG['enabled'][$code.'_title'],
-            'Type' => 'yesno', 
-            'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
-        ];
-        if ($code == 'btc') {
-            $settings_array[$code . 'Enabled']['Default'] = 'on';
-        }
-    }
+    $settings_array['CheckoutMode'] = [
+        'FriendlyName' => $_BLOCKLANG['checkoutMode']['title'],
+        'Type' => 'radio',
+        'Options' => [
+            'mainnet' => $_BLOCKLANG['checkoutMode']['mainnet'],
+            'testnet' => $_BLOCKLANG['checkoutMode']['testnet'],
+        ],
+        'Default' => 'mainnet',
+        'Description' => $_BLOCKLANG['checkoutMode']['description'],
+    ];
+    $settings_array['bchEnabled'] = [
+        'FriendlyName' => $_BLOCKLANG['enabled']['bch_title'],
+        'Type' => 'yesno',
+        'Description' => $_BLOCKLANG['enabled']['bch_description'],
+    ];
+
     return $settings_array;
 }
 
