@@ -322,25 +322,7 @@ class Blockonomics
 
         return $checkout_currencies;
     }
-    
 
-    /*
-     * Get list of active crypto currencies
-     */
-    public function getActiveCurrencies()
-    {
-        $active_currencies = [];
-        $blockonomics_currencies = $this->getSupportedCurrencies();
-
-        foreach ($blockonomics_currencies as $code => $currency) {
-            $gatewayParams = getGatewayVariables('blockonomics');
-            $enabled = $gatewayParams[$code . 'Enabled'];
-            if ($enabled) {
-                $active_currencies[$code] = $currency;
-            }
-        }
-        return $active_currencies;
-    }
 
     /*
      * Get user configured Time Period from database

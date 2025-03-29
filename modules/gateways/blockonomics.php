@@ -30,7 +30,6 @@ function blockonomics_config()
             include $blockonomics->getLangFilePath();
             $system_url = \App::getSystemURL();
             $secret = $blockonomics->getCallbackSecret();
-            $active_currencies = json_encode($blockonomics->getActiveCurrencies());
             $callback_url = $blockonomics->getCallbackUrl($secret);
             $trans_text_system_url_error = $_BLOCKLANG['testSetup']['systemUrl']['error'];
             $trans_text_system_url_fix = $_BLOCKLANG['testSetup']['systemUrl']['fix'];
