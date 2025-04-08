@@ -210,19 +210,20 @@ class Blockonomics
      */
     private function findMatchingStore($stores, $callback_url)
     {
-        $matching_store = null;
-        $store_without_callback = null;
-        $partial_match_store = null;
+        $partial_match_result = null;
+        $empty_callback_result = null;
 
         foreach ($stores as $store) {
             // Exact match
             if ($store->http_callback === $callback_url) {
-                return $store;
+                return ['store' => $store, 'match_type' => 'exact'];
             }
             
             // Store without callback
             if (empty($store->http_callback)) {
-                $store_without_callback = $store;
+                if (!$empty_callback_result) { // Keep the first empty one found
+                    $empty_callback_result = ['store' => $store, 'match_type' => 'empty'];
+                }
                 continue;
             }
 
@@ -231,13 +232,20 @@ class Blockonomics
             $target_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $callback_url);
 
             if ($store_base_url === $target_base_url) {
-                $partial_match_store = $store;
+                 if (!$partial_match_result) { // Keep the first partial one found
+                    $partial_match_result = ['store' => $store, 'match_type' => 'partial'];
+                }
             }
         }
 
-        // Return best available match
-        $result = $partial_match_store ?: $store_without_callback;
-        return $result;
+        // Return best available match in order of preference: partial > empty > none
+        if ($partial_match_result) {
+            return $partial_match_result;
+        } elseif ($empty_callback_result) {
+            return $empty_callback_result;
+        } else {
+            return ['store' => null, 'match_type' => 'none'];
+        }
     }
 
     /**
@@ -1105,16 +1113,20 @@ class Blockonomics
         $gatewayParams = getGatewayVariables('blockonomics');
         $callback_url = $gatewayParams['CallbackURL'];
 
-        $matching_store = $this->findMatchingStore($stores_response->data, $callback_url);
-        if (!$matching_store) {
-            return $_BLOCKLANG['testSetup']['addStore'];
-        }
+        $match_result = $this->findMatchingStore($stores_response->data, $callback_url);
+        $matching_store = $match_result['store'];
+        $match_type = $match_result['match_type'];
 
-        // If we found a store but it doesn't have an exact matching callback, update it
-        if ($matching_store->http_callback !== $callback_url) {
-            if (!$this->updateStoreCallback($matching_store, $callback_url)) {
-                return "Could not update store callback";
-            }
+        switch ($match_type) {
+            case 'none':
+                return $_BLOCKLANG['testSetup']['addStore'];
+            case 'empty':
+                return $_BLOCKLANG['testSetup']['setCallback'];
+            case 'partial':
+                return $_BLOCKLANG['testSetup']['updateCallback'];
+            case 'exact':
+                // Exact match found, proceed with setup
+                break;
         }
 
         // Save store name

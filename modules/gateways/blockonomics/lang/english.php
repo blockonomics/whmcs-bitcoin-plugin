@@ -80,3 +80,5 @@ $_BLOCKLANG['testSetup']['addStore'] = 'Please add a <a href="https://www.blocko
 $_BLOCKLANG['testSetup']['addWallet'] = 'Please add a wallet';
 $_BLOCKLANG['testSetup']['invalidResponse'] = 'Invalid response was received. Please retry.';
 $_BLOCKLANG['testSetup']['noCrypto'] = 'No crypto enabled on Store';
+$_BLOCKLANG['testSetup']['setCallback'] = 'Callback URL not set. Please set the Callback URL on your <a href="https://www.blockonomics.co/dashboard#/store" target="_blank">Blockonomics Store</a>.';
+$_BLOCKLANG['testSetup']['updateCallback'] = 'Callback URL mismatch. Please update the Callback URL on your <a href="https://www.blockonomics.co/dashboard#/store" target="_blank">Blockonomics Store</a>.';
