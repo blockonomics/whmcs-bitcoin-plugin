@@ -92,6 +92,7 @@
     </div>
 </div>
 
+{if $crypto['code'] neq 'usdt'}
 <script>
 var blockonomics_data = JSON.stringify({
     time_period: {$time_period},
@@ -106,3 +107,4 @@ var blockonomics_data = JSON.stringify({
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js "></script>
+{/if}
