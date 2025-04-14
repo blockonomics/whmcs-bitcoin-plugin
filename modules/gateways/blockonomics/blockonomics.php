@@ -1403,7 +1403,7 @@ class Blockonomics
             'txhash' => $txhash,
             'crypto' => strtoupper($crypto),
             'match_callback' => $callback_url,
-            'network' => ($checkoutMode === 'testnet') ? 'testnet' : 'mainnet',
+            'testnet' => ($checkoutMode === 'testnet') ? '1' : '0',
         );
 
         try {
