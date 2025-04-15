@@ -176,9 +176,13 @@ class Blockonomics {
 
     connect_to_ws() {
         //Connect and Listen on websocket for payment notification
+        if (this.data.crypto.code === 'usdt') {
+            // skipping websocket for USDT
+            return;
+        }
         var ws = new ReconnectingWebSocket(
             'wss://' +
-                (this.data.crypto.code == 'btc' || this.data.crypto.code == 'usdt'
+                (this.data.crypto.code == 'btc'
                     ? 'www'
                     : this.data.crypto.code) +
                 '.blockonomics.co/payment/' +
