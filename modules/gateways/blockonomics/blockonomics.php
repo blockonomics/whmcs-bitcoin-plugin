@@ -1123,7 +1123,7 @@ class Blockonomics
             case 'empty':
                 return $_BLOCKLANG['testSetup']['setCallback'];
             case 'partial':
-                return $_BLOCKLANG['testSetup']['updateCallback'];
+                return $_BLOCKLANG['testSetup']['setCallback'];
             case 'exact':
                 // Exact match found, proceed with setup
                 break;
