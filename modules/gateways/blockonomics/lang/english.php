@@ -34,15 +34,15 @@ $_BLOCKLANG['noCrypto']['message'] = 'Note to webmaster: Can be enabled via Setu
 
 // Callback
 $_BLOCKLANG['error']['secret'] = 'Secret verification failure';
-$_BLOCKLANG['invoiceNote']['waiting'] = 'Waiting for Confirmation on';
-$_BLOCKLANG['invoiceNote']['network'] = 'network';
+$_BLOCKLANG['invoiceNote']['waiting'] = 'Invoice will be automatically marked as paid on transaction confirm by the';
+$_BLOCKLANG['invoiceNote']['network'] = 'network. No further action is required.';
 
 // Admin Menu
 $_BLOCKLANG['storeName']['title'] = 'Store Name';
 $_BLOCKLANG['storeName']['description'] = 'Your Blockonomics store name';
 $_BLOCKLANG['version']['title'] = 'Version';
 $_BLOCKLANG['apiKey']['title'] = 'API Key';
-$_BLOCKLANG['apiKey']['description'] = 'Get your API Key from <a target="_blank" href="https://www.blockonomics.co/dashboard#/">Blockonomics Dashboard</a>';
+$_BLOCKLANG['apiKey']['description'] = 'Get your API Key from <a target="_blank" href="https://www.blockonomics.co/dashboard#/store">Blockonomics Dashboard</a>';
 $_BLOCKLANG['enabled']['title'] = 'Enabled';
 $_BLOCKLANG['enabled']['btc_description'] = 'To configure click <b>Get Started for Free</b> on <a target="_blank" href="https://blockonomics.co/merchants">https://blockonomics.co/merchants</a>';
 $_BLOCKLANG['enabled']['bch_title'] = 'Enable BCH';
