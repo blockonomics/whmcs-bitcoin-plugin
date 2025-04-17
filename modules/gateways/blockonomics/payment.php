@@ -1,7 +1,10 @@
 <?php
-
 require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 use WHMCS\ClientArea;
@@ -29,6 +32,7 @@ $crypto = isset($_GET["crypto"]) ? htmlspecialchars($_GET['crypto']) : "";
 $select_crypto = isset($_GET["select_crypto"]) ? htmlspecialchars($_GET['select_crypto']) : "";
 $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_order']) : "";
 $get_order = isset($_GET['get_order']) ? htmlspecialchars($_GET['get_order']) : "";
+$txhash = isset($_GET['txhash']) ? htmlspecialchars($_GET['txhash']) : "";
 
 if($crypto === "empty"){
     $blockonomics->load_blockonomics_template($ca, 'no_crypto_selected');
@@ -36,10 +40,13 @@ if($crypto === "empty"){
     $blockonomics->load_checkout_template($ca, $show_order, $crypto);
 }else if ($select_crypto) {
     $blockonomics->load_blockonomics_template($ca, 'crypto_options', array(
-        "cryptos" => $blockonomics->getActiveCurrencies(),
+        "cryptos" => $blockonomics->getCheckoutCurrencies(),
         "order_hash" => $select_crypto
     ));
 }else if ($finish_order) {
+    if ($crypto == "usdt"){
+        $blockonomics->process_token_order($finish_order, $crypto, $txhash); 
+    }
     $blockonomics->redirect_finish_order($finish_order);
 }else if ($get_order && $crypto) {
     $existing_order = $blockonomics->processOrderHash($get_order, $crypto);
@@ -49,8 +56,8 @@ if($crypto === "empty"){
         exit();
     } else {
         $response = [
-            "order_amount" => $blockonomics->fix_displaying_small_values($existing_order->bits),
-            "crypto_rate_str" => $blockonomics->get_crypto_rate_from_params($existing_order->value, $existing_order->bits),
+            "order_amount" => $blockonomics->fix_displaying_small_values($existing_order->bits, $existing_order->blockonomics_currency),
+            "crypto_rate_str" => $blockonomics->get_crypto_rate_from_params($existing_order->value, $existing_order->bits, $existing_order->blockonomics_currency),
             "payment_uri" => $blockonomics->get_payment_uri($blockonomics->getSupportedCurrencies()[$crypto]['uri'], $existing_order->addr, $existing_order->bits)
         ];
         header('Content-Type: application/json');

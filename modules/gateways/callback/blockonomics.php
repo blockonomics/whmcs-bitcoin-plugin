@@ -1,11 +1,13 @@
 <?php
-
 // Require libraries needed for gateway module functions.
 require '../../../init.php';
 require '../../../includes/gatewayfunctions.php';
 require '../../../includes/invoicefunctions.php';
-
 require '../blockonomics/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 
 use Blockonomics\Blockonomics;
 
@@ -45,14 +47,19 @@ if ($secret_value != $secret) {
 }
 
 $order = $blockonomics->getOrderByAddress($addr);
+if (!$order || !$order['order_id']) {
+    $order = $blockonomics->getOrderBytxn($txid);
+}
 $invoiceId = $order['order_id'];
 $bits = $order['bits'];
 
 $confirmations = $blockonomics->getConfirmations();
 
+
+
 $blockonomics_currency_code = $order['blockonomics_currency'];
 $blockonomics_currency = $blockonomics->getSupportedCurrencies()[$blockonomics_currency_code];
-if ($blockonomics_currency_code == 'btc') {
+if ($blockonomics_currency_code == 'btc' || $blockonomics_currency_code == 'usdt') {
     $subdomain = 'www';
 } else {
     $subdomain = $blockonomics_currency_code;
@@ -60,11 +67,16 @@ if ($blockonomics_currency_code == 'btc') {
 
 $systemUrl = \App::getSystemURL();
 if ($status < $confirmations) {
-    $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . $systemUrl . 'modules/gateways/blockonomics/assets/img/' . $blockonomics_currency_code . '.png" style="max-width: 20px;"> ' . $blockonomics_currency->name . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
-    $blockonomics_currency->name . " transaction id:\r" .
-        '<a target="_blank" href="https://' . $subdomain . ".blockonomics.co/api/tx?txid=$txid&addr=$addr\">$txid</a>";
-
-    $blockonomics->updateOrderInDb($addr, $txid, $status, $value);
+    if ($blockonomics_currency_code == 'usdt') {
+        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
+        $blockonomics_currency->name . " transaction id:\r" .
+            '<a target="_blank" href="https://www.etherscan.io/tx/' . $txid . '">' . $txid . '</a>';
+    } else {
+        $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
+        $blockonomics_currency->name . " transaction id:\r" .
+            '<a target="_blank" href="https://' . $subdomain . ".blockonomics.co/api/tx?txid=$txid&addr=$addr\">$txid</a>";
+    }
+    $blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
     $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
 
     exit();
@@ -77,9 +89,9 @@ if ($value < $bits - $underpayment_slack || $value > $bits) {
     $satoshiAmount = $bits;
 }
 $percentPaid = $satoshiAmount / $bits * 100;
-$paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);
+$paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);  
 $blockonomics->updateInvoiceNote($invoiceId, null);
-$blockonomics->updateOrderInDb($addr, $txid, $status, $value);
+$blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
 
 /**
  * Validate Callback Invoice ID.

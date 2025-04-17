@@ -150,6 +150,9 @@ svg {
 .bnomics-icon-btc:before {
   content: "\e901";
 }
+.bnomics-icon-usdt:before {
+  content: "\e902";
+}
 
 .bnomics-select-options {
   cursor:pointer;
@@ -390,4 +393,14 @@ svg {
   display: block;
   text-align: center;
   transition: 300ms all ease-in-out;
+}
+
+#web3-payment {
+  --primary-color: #40c381 !important;
+  --text-color: #000000 !important;
+  --error-color: #cf3310 !important;
+  --disabled-color: #768b80 !important;
+  --border-color: #e0e0e0 !important;
+  --highlight-color: #b7ecd1 !important;
+  --warning-color: #f1760f !important;
 }

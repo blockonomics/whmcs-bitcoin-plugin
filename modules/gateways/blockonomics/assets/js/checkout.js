@@ -98,24 +98,24 @@ class Blockonomics {
         // Click Bindings
 
         // Copy bitcoin address to clipboard
-        this._address_copy.addEventListener('click', (e) => {
+        this._address_copy?.addEventListener('click', (e) => {
             e.preventDefault();
             this.copy_to_clipboard('bnomics-address-input');
         });
 
         // Copy bitcoin amount to clipboard
-        this._amount_copy.addEventListener('click', (e) => {
+        this._amount_copy?.addEventListener('click', (e) => {
             e.preventDefault();
             this.copy_to_clipboard('bnomics-amount-input');
         });
 
         // QR Handler
-        this._show_qr.addEventListener('click', (e) => {
+        this._show_qr?.addEventListener('click', (e) => {
             e.preventDefault();
             this.toggle_qr();
         });
 
-        this._refresh.addEventListener('click', (e) => {
+        this._refresh?.addEventListener('click', (e) => {
             e.preventDefault();
             this.refresh_order();
         });
@@ -163,17 +163,23 @@ class Blockonomics {
             //Order expired
             this.refresh_order();
         } else {
-            this._time_left.innerHTML = `${String(
-                Math.floor(this.progress.clock / 60)
-            ).padStart(2, '0')}:${String(this.progress.clock % 60).padStart(
-                2,
-                '0'
-            )} min`;
+            if (this._time_left) {
+                this._time_left.innerHTML = `${String(
+                    Math.floor(this.progress.clock / 60)
+                ).padStart(2, '0')}:${String(this.progress.clock % 60).padStart(
+                    2,
+                    '0'
+                )} min`;
+            }
         }
     }
 
     connect_to_ws() {
         //Connect and Listen on websocket for payment notification
+        if (this.data.crypto.code === 'usdt') {
+            // skipping websocket for USDT
+            return;
+        }
         var ws = new ReconnectingWebSocket(
             'wss://' +
                 (this.data.crypto.code == 'btc'

@@ -2,6 +2,9 @@
 
 namespace Blockonomics;
 
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
 use Exception;
 use stdClass;
 use WHMCS\Database\Capsule;
@@ -10,13 +13,24 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '1.9.8';
+    private $version = '2.0';
 
-    const SET_CALLBACK_URL = 'https://www.blockonomics.co/api/update_callback';
-    const GET_CALLBACKS_URL = 'https://www.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const BASE_URL = 'https://www.blockonomics.co/';
+    const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
-    const BCH_SET_CALLBACK_URL = 'https://bch.blockonomics.co/api/update_callback';
-    const BCH_GET_CALLBACKS_URL = 'https://bch.blockonomics.co/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+    const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
+    const WALLETS_URL = self::BASE_URL . '/api/v2/wallets';
+    const NEW_ADDRESS_URL = self::BASE_URL . '/api/new_address';
+    const PRICE_URL = self::BASE_URL . '/api/price';
+
+    const BCH_PRICE_URL = self::BCH_BASE_URL . '/api/price';
+    const BCH_NEW_ADDRESS_URL = self::BCH_BASE_URL . '/api/new_address';
+
+    const SET_CALLBACK_URL = self::BASE_URL . '/api/update_callback';
+    const GET_CALLBACKS_URL = self::BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
+
+    const BCH_SET_CALLBACK_URL = self::BCH_BASE_URL . '/api/update_callback';
+    const BCH_GET_CALLBACKS_URL = self::BCH_BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
     /*
      * Get the blockonomics version
@@ -101,31 +115,222 @@ class Blockonomics
                 'code' => 'btc',
                 'name' => 'Bitcoin',
                 'uri' => 'bitcoin',
+                'decimals' => 8,
             ],
             'bch' => [
                 'code' => 'bch',
                 'name' => 'Bitcoin Cash',
                 'uri' => 'bitcoincash',
+                'decimals' => 8,
             ],
+            'usdt' => array(
+                'code' => 'usdt',
+                'name' => 'USDT',
+                'uri' => 'USDT',
+                'decimals' => 6,
+            )
         ];
     }
 
-    /*
-     * Get list of active crypto currencies
-     */
-    public function getActiveCurrencies()
+    // save to cache, what cryptos are enabled on blockonomics store
+    public function saveBlockonomicsEnabledCryptos($cryptos)
     {
-        $active_currencies = [];
-        $blockonomics_currencies = $this->getSupportedCurrencies();
-        foreach ($blockonomics_currencies as $code => $currency) {
-            $gatewayParams = getGatewayVariables('blockonomics');
-            $enabled = $gatewayParams[$code . 'Enabled'];
-            if ($enabled) {
-                $active_currencies[$code] = $currency;
+        try {
+            Capsule::table('tblpaymentgateways')
+                ->updateOrInsert(
+                    [
+                        'gateway' => 'blockonomics',
+                        'setting' => 'EnabledCryptos'
+                    ],
+                    [
+                        'value' => implode(',', $cryptos),
+                        'order' => 0
+                    ]
+                );
+            return true;
+        } catch (Exception $e) {
+            error_log("Failed to save enabled cryptos: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // see from cache what cryptos are enabled on blockonomics store
+    public function getBlockonomicsEnabledCryptos($forceApiCall = false)
+    {
+        // First try to get from cache unless forceApiCall is true
+        if (!$forceApiCall) {
+            try {
+                $result = Capsule::table('tblpaymentgateways')
+                    ->where('gateway', 'blockonomics')
+                    ->where('setting', 'EnabledCryptos')
+                    ->value('value');
+
+                if ($result) {
+                    return explode(',', $result);
+                }
+            } catch (Exception $e) {
+                error_log("Failed to get enabled cryptos from cache: " . $e->getMessage());
             }
         }
-        return $active_currencies;
+
+        // If cache is empty or forceApiCall is true, make API call
+        $enabled_cryptos = [];
+
+        // Make API call to get store info
+        $stores_response = json_decode($this->getStoreSetup());
+        if (!isset($stores_response) || isset($stores_response->error) || empty($stores_response->data)) {
+            return $enabled_cryptos;
+        }
+
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
+
+        // Find the best matching store
+        $store_to_use = $this->findMatchingStore($stores_response->data, $callback_url);
+
+        // Get enabled cryptocurrencies from the store
+        if ($store_to_use) {
+            $enabled_cryptos = $this->getStoreEnabledCryptos($store_to_use);
+        }
+
+        // Save to cache for future use
+        if (!empty($enabled_cryptos)) {
+            $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
+        }
+
+        return $enabled_cryptos;
     }
+
+    /**
+     * Find a matching store based on callback URL
+     *
+     * @param array $stores List of stores from Blockonomics API
+     * @param string $callback_url The callback URL to match
+     * @return object|null Returns matching store or null if not found
+     */
+    private function findMatchingStore($stores, $callback_url)
+    {
+        $partial_match_result = null;
+        $empty_callback_result = null;
+
+        foreach ($stores as $store) {
+            // Exact match
+            if ($store->http_callback === $callback_url) {
+                return ['store' => $store, 'match_type' => 'exact'];
+            }
+            
+            // Store without callback
+            if (empty($store->http_callback)) {
+                if (!$empty_callback_result) { // Keep the first empty one found
+                    $empty_callback_result = ['store' => $store, 'match_type' => 'empty'];
+                }
+                continue;
+            }
+
+            // Partial match - only secret or protocol differs
+            $store_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $store->http_callback);
+            $target_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $callback_url);
+
+            if ($store_base_url === $target_base_url) {
+                 if (!$partial_match_result) { // Keep the first partial one found
+                    $partial_match_result = ['store' => $store, 'match_type' => 'partial'];
+                }
+            }
+        }
+
+        // Return best available match in order of preference: partial > empty > none
+        if ($partial_match_result) {
+            return $partial_match_result;
+        } elseif ($empty_callback_result) {
+            return $empty_callback_result;
+        } else {
+            return ['store' => null, 'match_type' => 'none'];
+        }
+    }
+
+    /**
+     * Get enabled cryptocurrencies from a store's wallets
+     *
+     * @param object $store Store object from Blockonomics API
+     * @return array List of enabled cryptocurrency codes
+     */
+    private function getStoreEnabledCryptos($store)
+    {
+        $enabled_cryptos = [];
+
+        if (!empty($store->wallets)) {
+            foreach ($store->wallets as $wallet) {
+                if (isset($wallet->crypto)) {
+                    $crypto = strtolower($wallet->crypto);
+                    if (!in_array($crypto, $enabled_cryptos)) {
+                        $enabled_cryptos[] = $crypto;
+                    }
+                }
+            }
+        }
+
+        return $enabled_cryptos;
+    }
+
+    /**
+     * Update store callback URL on Blockonomics
+     *
+     * @param object $store Store object to update
+     * @param string $callback_url New callback URL
+     * @return bool Success status
+     */
+    private function updateStoreCallback($store, $callback_url)
+    {
+        $post_content = json_encode([
+            'name' => $store->name,
+            'http_callback' => $callback_url
+        ]);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::BASE_URL . '/api/v2/stores/' . $store->id);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $this->getApiKey(),
+            'Content-Type: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $response_code === 200;
+    }
+    
+
+
+    public function getCheckoutCurrencies()
+    {
+        // Get currencies enabled on Blockonomics store (from cache or API)
+        $blockonomics_enabled = $this->getBlockonomicsEnabledCryptos();
+
+        // Result currencies
+        $checkout_currencies = [];
+        $supported_currencies = $this->getSupportedCurrencies();
+
+        // Add BCH if enabled in WHMCS settings
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $bchEnabled = $gatewayParams['bchEnabled'];
+        if ($bchEnabled && isset($supported_currencies['bch'])) {
+            $checkout_currencies['bch'] = $supported_currencies['bch'];
+        }
+
+        // Add other currencies from Blockonomics cache
+        foreach ($blockonomics_enabled as $code) {
+            if ($code != 'bch' && isset($supported_currencies[$code])) {
+                $checkout_currencies[$code] = $supported_currencies[$code];
+            }
+        }
+
+        return $checkout_currencies;
+    }
+
 
     /*
      * Get user configured Time Period from database
@@ -211,46 +416,59 @@ class Blockonomics
      */
     public function getNewAddress($currency = 'btc', $reset = false)
     {
-        if ($currency == 'btc') {
-            $subdomain = 'www';
-        } else {
-            $subdomain = $currency;
+        // Determine base URL based on currency
+        $url = ($currency == 'bch') ? self::BCH_NEW_ADDRESS_URL : self::NEW_ADDRESS_URL;
+
+        // Get the callback URL from gateway cache
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
+
+        // Build query parameters
+        $params = array();
+        if ($callback_url) {
+            $params['match_callback'] = $callback_url;
         }
-
-        $api_key = $this->getApiKey();
-        $callback_secret = $this->getCallbackSecret();
-
         if ($reset) {
-            $get_params = "?match_callback=$callback_secret&reset=1";
-        } else {
-            $get_params = "?match_callback=$callback_secret";
+            $params['reset'] = 1;
+        }
+        $params['crypto'] = strtoupper($currency);
+
+        // Append query parameters to URL
+        if (!empty($params)) {
+            $url .= '?' . http_build_query($params);
         }
 
+        // Initialize cURL
         $ch = curl_init();
-
-        curl_setopt($ch, CURLOPT_URL, 'https://' . $subdomain . '.blockonomics.co/api/new_address' . $get_params);
+        curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $this->getApiKey()
+        ]);
 
-        $header = 'Authorization: Bearer ' . $api_key;
-        $headers = [];
-        $headers[] = $header;
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
+        // Execute request
         $contents = curl_exec($ch);
         if (curl_errno($ch)) {
             exit('Error:' . curl_error($ch));
         }
 
+        // Create response object
         $responseObj = json_decode($contents);
-        //Create response object if it does not exist
         if (!isset($responseObj)) {
             $responseObj = new stdClass();
         }
-        $responseObj->{'response_code'} = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
+        // Add response code
+        $responseObj->response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        // Add error message if needed
         if (!isset($responseObj->message)) {
-            $responseObj->{'message'} = 'Error: (' . $responseObj->response_code . ') ' . $contents;
+            if (isset($responseObj->error_code) && $responseObj->error_code == 1002) {
+                $responseObj->message = 'Multiple wallets found. Please ensure callback URL is set correctly.';
+            } else {
+                $responseObj->message = 'Error: (' . $responseObj->response_code . ') ' . $contents;
+            }
         }
 
         curl_close($ch);
@@ -267,37 +485,67 @@ class Blockonomics
     }
 
     /*
+     * Make a generic HTTP GET request with optional headers
+     */
+    private function makeGetRequest($url, $headers = []) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        if (!empty($headers)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        }
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Error: ' . $error);
+        }
+        
+        curl_close($ch);
+        
+        return [
+            'response' => $response,
+            'http_code' => $http_code
+        ];
+    }
+
+    /*
      * Convert fiat amount to Blockonomics currency
      */
     public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
     {
         try {
-            if ($blockonomics_currency == 'btc') {
-                $subdomain = 'www';
+            if ($blockonomics_currency === 'usdt') {
+                $url = 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency;
+                $result = $this->makeGetRequest($url);
+                $data = json_decode($result['response']);
+                $price = $data->{strtoupper($currency)};
             } else {
-                $subdomain = $blockonomics_currency;
+                $url = ($blockonomics_currency == 'btc') ?
+                    self::PRICE_URL . '?currency=' . $currency :
+                    self::BCH_PRICE_URL . '?currency=' . $currency;
+                $result = $this->makeGetRequest($url);
+                $price = json_decode($result['response'])->price;
             }
 
-            $ch = curl_init();
-
-            curl_setopt($ch, CURLOPT_URL, 'https://' . $subdomain . '.blockonomics.co/api/price?currency=' . $currency);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-            $contents = curl_exec($ch);
-            if (curl_errno($ch)) {
-                exit('Error:' . curl_error($ch));
-            }
-            curl_close($ch);
-            $price = json_decode($contents)->price;
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
+                // lower price means customers need to pay more BTC for the same fiat amount
                 $price = $price * 100 / (100 + $margin);
             }
         } catch (Exception $e) {
             exit("Error getting price from Blockonomics! {$e->getMessage()}");
         }
 
-        return intval(1.0e8 * $fiat_amount / $price);
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+
+        $multiplier = pow(10, $crypto['decimals']);
+        return intval($multiplier * $fiat_amount / $price);
     }
 
     /**
@@ -500,6 +748,11 @@ class Blockonomics
                 ]
             );
         } catch (Exception $e) {
+            // Check if it's a duplicate key error
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                exit("Duplicate address generation error. Note to website administrator: please contact Blockonomics support portal for assistance.");
+            }
+            // For other database errors, show a generic message
             exit("Unable to insert new order into blockonomics_orders: {$e->getMessage()}");
         }
         return true;
@@ -512,7 +765,11 @@ class Blockonomics
     {
         $new_addresss_response = $this->getNewAddress($blockonomics_currency);
         if ($new_addresss_response->response_code == 200) {
-            $order->addr = $new_addresss_response->address;
+            if ($blockonomics_currency === 'usdt') {
+                $order->addr = $new_addresss_response->address . '-' . $order->id_order;
+            } else {
+                $order->addr = $new_addresss_response->address;
+            }
         } else {
             exit($new_addresss_response->message);
         }
@@ -584,8 +841,49 @@ class Blockonomics
             'blockonomics_currency' => $existing_order->blockonomics_currency,
             'txid' => $existing_order->txid,
             'basecurrencyamount' => $existing_order->basecurrencyamount,
+            'addr' => $existing_order->addr,
         ];
     }
+
+    /*
+     * Try to get order row from db by txnid
+     */
+    public function getOrderBytxn($txnid)
+    {
+        try {
+            $existing_order = Capsule::table('blockonomics_orders')
+            ->where('txid', $txnid)
+            ->first();
+        } catch (Exception $e) {
+            exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
+        }
+
+        return [
+            'order_id' => $existing_order->id_order,
+            'timestamp' => $existing_order->timestamp,
+            'status' => $existing_order->status,
+            'value' => $existing_order->value,
+            'bits' => $existing_order->bits,
+            'bits_payed' => $existing_order->bits_payed,
+            'blockonomics_currency' => $existing_order->blockonomics_currency,
+            'txid' => $existing_order->txid,
+            'basecurrencyamount' => $existing_order->basecurrencyamount,
+            'addr' => $existing_order->addr,
+        ];
+    }
+
+    /*
+     * Try to get order row from db by transaction
+     */
+
+     public function blockonomicsTransactionExists($txhash)
+     {
+         $existing_order = Capsule::table('blockonomics_orders')
+             ->where('txid', $txhash)
+             ->first();
+ 
+         return $existing_order !== null;
+     }
 
     /*
      * Get the order id using the order hash
@@ -687,183 +985,215 @@ class Blockonomics
         return $langfilepath;
     }
 
+    /*
+    * Get the wallets from the API, also checks if API key is valid
+    * @return array [
+    *   'is_valid' => bool,    // Whether the API key is valid
+    *   'error' => string,     // Error message if any
+    *   'wallets' => array     // Array of configured wallet currencies
+    * ]
+    */
+    public function get_wallets()
+    {
+        include $this->getLangFilePath();
+        $api_key = $this->getApiKey();
+        $result = [
+            'is_valid' => false,
+            'error' => '',
+            'wallets' => []
+        ];
+
+        // check if API key is empty
+        if (empty($api_key)) {
+            $result['error'] = $_BLOCKLANG['testSetup']['emptyApi'];
+            return $result;
+        }
+        //Make API call to get wallets and also consequently check if API key is valid
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . trim($api_key),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+
+        // check network level errors like CORS, connection failure
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            $result['error'] = $_BLOCKLANG['testSetup']['blockedHttps'];
+            curl_close($ch);
+            return $result;
+        }
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($http_code === 401) {
+            $result['error'] = $_BLOCKLANG['testSetup']['incorrectApi'];
+            return $result;
+        }
+
+        if ($http_code !== 200) {
+            // For any other error, return the API response as is
+            $result['error'] = 'API Error: ' . $response;
+            return $result;
+        }
+
+        $response_data = json_decode($response);
+
+        // Check if response is valid JSON
+        if (!$response_data) {
+            return $_BLOCKLANG['testSetup']['invalidResponse'];
+        }
+
+        // API key is valid at this point
+        $result['is_valid'] = true;
+
+        // Process wallet information to get unique cryptocurrencies
+        if (!empty($response_data->data)) {
+            foreach ($response_data->data as $wallet) {
+                if (isset($wallet->crypto)) {
+                    $crypto = strtolower($wallet->crypto);
+                    if (!in_array($crypto, $result['wallets'])) {
+                        $result['wallets'][] = $crypto;
+                    }
+                }
+            }
+        }
+
+        // If no wallets configured
+        if (empty($result['wallets'])) {
+            $result['error'] = $_BLOCKLANG['testSetup']['addWallet'];
+            return $result;
+        }
+
+        return $result;
+
+    }
+
     /**
      * Run the test setup
      *
-     * @return string error message
+     * @return string error message or success message
      */
     public function testSetup()
     {
-        $test_results = array();
-        $active_currencies = $this->getActiveCurrencies();
-        
-        foreach ($active_currencies as $code => $currency)  {
-            $test_results[$code] = $this->test_one_currency($code);
-        }
-        
-        return $test_results;
-    }
-
-    public function test_one_currency($currency)
-    {
         include $this->getLangFilePath();
 
         $api_key = $this->getApiKey();
-        $error_str = '';
-
-        if (!isset($api_key) || empty($api_key)) {
-            $error_str = $_BLOCKLANG['testSetup']['emptyApi'];
-        } else {
-            $response = $this->get_callbacks($currency);
-            $error_str = $this->check_callback_urls_or_set_one($currency, $response);
-        }
-        
-
-        if ($error_str == '') {
-            //Everything OK ! Test address generation
-            $error_str = $this->test_new_address_gen($currency);
+        if (empty($api_key)) {
+            return $_BLOCKLANG['testSetup']['emptyApi'];
         }
 
-        if($error_str) {
-            return $error_str;
+        // Check configured wallets and validate API key
+        $wallet_result = $this->get_wallets();
+
+        // If API key is invalid or any other error, return error
+        if (!isset($wallet_result['is_valid']) || !$wallet_result['is_valid']) {
+            return isset($wallet_result['error']) ? $wallet_result['error'] : $_BLOCKLANG['testSetup']['incorrectApi'];
         }
-        // No Errors
-        return false;
-    }
 
-    public function get_callbacks($currency)
-    {
-        if ($currency == 'btc'){
-            $url = Blockonomics::GET_CALLBACKS_URL;
-        }else{
-            $url = Blockonomics::BCH_GET_CALLBACKS_URL;
+        // If no wallets configured, return error
+        if (empty($wallet_result['wallets'])) {
+            return $_BLOCKLANG['testSetup']['addWallet'];
         }
-        $response = $this->doCurlCall($url);
-        return $response;
-    }
 
-    public function check_callback_urls_or_set_one($currency, $response) 
-    {
-        $api_key = $this->getApiKey();
+        // Now we check the configured stores on blockonomics dashboard
+        $stores_response = json_decode($this->getStoreSetup());
 
-        //check the current callback and detect any potential errors
-        $error_str = $this->check_get_callbacks_response_code($response, $currency);
-
-        if(!$error_str){
-            //if needed, set the callback.
-            $error_str = $this->check_get_callbacks_response_body($response, $currency);
+        if (!isset($stores_response) || isset($stores_response->error)) {
+            return $_BLOCKLANG['testSetup']['blockedHttps'];
         }
-        return $error_str;
-    }
 
-    public function check_get_callbacks_response_code($response)
-    {
-        
-        include $this->getLangFilePath();
-        
-        $error_str = '';
-        
-        if (!isset($response->response_code)) {
-            $error_str = $_BLOCKLANG['testSetup']['blockedHttps'];
-        } elseif ($response->response_code == 401) {
-            $error_str = $_BLOCKLANG['testSetup']['incorrectApi'];
-        } elseif ($response->response_code != 200) {
-            $error_str = $response->data;
+        if (empty($stores_response->data)) {
+            return $_BLOCKLANG['testSetup']['addStore'];
         }
-        
-        return $error_str;
-    }
-    
-    public function check_get_callbacks_response_body($response, $currency)
-    {
-        include $this->getLangFilePath();
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
 
-        $error_str = '';
+        $match_result = $this->findMatchingStore($stores_response->data, $callback_url);
+        $matching_store = $match_result['store'];
+        $match_type = $match_result['match_type'];
 
-        if (!isset($response->data) || count($response->data) == 0) {
-            $error_str = $_BLOCKLANG['testSetup']['addStore'];
+        switch ($match_type) {
+            case 'none':
+                return $_BLOCKLANG['testSetup']['addStore'];
+            case 'empty':
+                return $_BLOCKLANG['testSetup']['setCallback'];
+            case 'partial':
+                return $_BLOCKLANG['testSetup']['setCallback'];
+            case 'exact':
+                // Exact match found, proceed with setup
+                break;
         }
-        //if merchant has at least one xPub on his Blockonomics account
-        elseif (count($response->data) >= 1)
-        {
-            $error_str = $this->examine_server_callback_urls($response, $currency);
-        }
-        return $error_str;
-    }
 
-    // checks each existing xpub callback URL to update and/or use
-    public function examine_server_callback_urls($response, $currency)
-    {
-        include $this->getLangFilePath();
+        // Save store name
+        try {
+            $storeName = $gatewayParams['StoreName'];
 
-        $callback_secret = $this->getCallbackSecret();
-        $callback_url = $this->getCallbackUrl($callback_secret);
-        // Extract String before get parameters
-        $site_url = strtok($callback_url, "?");
-        // Replace http:// or https:// from the $site_url to get base_url
-        $base_url = preg_replace('/https?:\/\//', '', $site_url);
-        $error_str = '';
-
-        $available_xpub = '';
-        $partial_match = '';
-
-        //Go through all xpubs on the server and examine their callback url
-        foreach($response->data as $one_response){
-            $server_callback_url = isset($one_response->callback) ? $one_response->callback : '';
-            $server_base_url = preg_replace('/https?:\/\//', '', $server_callback_url);
-            $xpub = isset($one_response->address) ? $one_response->address : '';
-
-            if(!$server_callback_url){
-                // No callback
-                $available_xpub = $xpub;
-            }else if($server_callback_url == $callback_url){
-                // Exact match
-                return '';
+            if (!isset($storeName) || $storeName !== $matching_store->name) {
+                Capsule::table('tblpaymentgateways')
+                    ->updateOrInsert(
+                        [
+                            'gateway' => 'blockonomics',
+                            'setting' => 'StoreName'
+                        ],
+                        [
+                            'value' => $matching_store->name,
+                            'order' => 0
+                        ]
+                    );
             }
-            else if(strpos($server_base_url, $base_url) === 0 ){
-                // Partial Match - Only secret or protocol differ
-                $partial_match = $xpub;
+        } catch (Exception $e) {
+            error_log("Failed to save store name: " . $e->getMessage());
+            // Non-critical error, continue
+        }
+
+        // Get enabled cryptos from the store
+        $enabled_cryptos = $this->getStoreEnabledCryptos($matching_store);
+
+        if (empty($enabled_cryptos)) {
+            return $_BLOCKLANG['testSetup']['noCrypto'];
+        }
+
+        // Save the enabled cryptos to WHMCS settings for later use in checkout
+        $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
+
+        // Test address generation for each enabled crypto (except BCH)
+        $success_messages = [];
+        $error_messages = [];
+
+        foreach ($enabled_cryptos as $code) {
+            // Skip BCH for testing
+            if ($code == 'bch') {
+                continue;
+            }
+
+            // Test address generation
+            $response = $this->getNewAddress($code, true);
+
+            if ($response->response_code == 200) {
+                $success_messages[] = strtoupper($code) . " ✅";
+            } else {
+                $error_messages[] = strtoupper($code) . ": " . $response->message;
             }
         }
 
-        // Use the available xpub
-        if($partial_match || $available_xpub){
-            $update_xpub = $partial_match ? $partial_match : $available_xpub;
-            $response = $this->update_callback($callback_url, $currency, $update_xpub);
-            if ($response->response_code != 200) {
-                return $response->message;
-            }
-            return '';
+        // If we have errors, return them
+        if (!empty($error_messages)) {
+            return implode("<br>", $error_messages);
         }
 
-        // No match and no empty callbac        
-        $error_str = $_BLOCKLANG['testSetup']['addStore'];
-
-        return $error_str;
-    }
-
-    public function update_callback($callback_url, $currency, $xpub)
-    {
-        if ($currency == 'btc'){
-            $url = Blockonomics::SET_CALLBACK_URL;
-        }else{
-            $url = Blockonomics::BCH_SET_CALLBACK_URL;
+        // If we have successes, return them
+        if (!empty($success_messages)) {
+            return implode("<br>", $success_messages);
         }
 
-        $post_content = '{"callback": "' . $callback_url . '", "xpub": "' . $xpub . '"}';
-        $response = $this->doCurlCall($url, $post_content);
-        return $response;
-    }
-
-    public function test_new_address_gen($currency)
-    {
-        $error_str = '';
-        $response = $this->getNewAddress($currency, true);
-        if ($response->response_code != 200){ 
-            $error_str = $response->message;
-        }
-        return $error_str;
-    }
+        // If we get here, something went wrong
+        return "No cryptocurrencies were tested";
+    }    
 
     public function redirect_finish_order($order_hash)
     {
@@ -886,8 +1216,17 @@ class Blockonomics
         return $uri . ':' . $addr . '?amount=' . $amount;
     }
     
-    public function fix_displaying_small_values($satoshi)
+    public function fix_displaying_small_values($satoshi, $blockonomics_currency)
     {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+
+        if ($blockonomics_currency == 'usdt') {
+            // For USDT, you usually don't need to display very small fractional values.
+            // Assuming $amount is in USDT, and typically 2 decimal places are sufficient.
+            return rtrim(number_format($satoshi/$multiplier, 2, '.', ''));
+        }
         if ($satoshi < 10000){
             return rtrim(number_format($satoshi/1.0e8, 8),0);
         } else {
@@ -895,11 +1234,15 @@ class Blockonomics
         }
     }
 
-    public function get_crypto_rate_from_params($value, $satoshi) {
+    public function get_crypto_rate_from_params($value, $satoshi, $blockonomics_currency) {
+        $supportedCurrency = $this->getSupportedCurrencies();
+        $crypto = $supportedCurrency[$blockonomics_currency];
+        $multiplier = pow(10, $crypto['decimals']);
+
         // Crypto Rate is re-calculated here and may slightly differ from the rate provided by Blockonomics
         // This is required to be recalculated as the rate is not stored anywhere in $order, only the converted satoshi amount is.
         // This method also helps in having a constant conversion and formatting for both Initial Load and API Refresh
-        return number_format($value*1.0e8/$satoshi, 2, '.', '');
+        return number_format($value*$multiplier/$satoshi, 2, '.', '');
     }
     
     public function load_checkout_template($ca, $show_order, $crypto)
@@ -908,20 +1251,46 @@ class Blockonomics
         $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
 
         $order = $this->processOrderHash($show_order, $crypto);
-        $active_cryptos = $this->getActiveCurrencies();
+        $active_cryptos = $this->getCheckoutCurrencies();
 
-        $crypto = $active_cryptos[$crypto];
-        $order_amount = $this->fix_displaying_small_values($order->bits);
-        
+        if (is_string($crypto) && isset($active_cryptos[$crypto])) {
+            // If $crypto is a string key, get the full crypto object
+            $crypto = $active_cryptos[$crypto];
+        } else if (is_string($crypto)) {
+            // If $crypto is a string but not found in active_cryptos,
+            // create a basic crypto object with the necessary fields
+            $supported_currencies = $this->getSupportedCurrencies();
+            if (isset($supported_currencies[$crypto])) {
+                $crypto = $supported_currencies[$crypto];
+            } else {
+                // Fallback to a basic structure if the crypto isn't in supported currencies
+                $crypto = [
+                    'code' => $crypto,
+                    'name' => strtoupper($crypto),
+                    'uri' => $crypto
+                ];
+            }
+        }
+
+        $order_amount = $this->fix_displaying_small_values($order->bits, $order->blockonomics_currency);
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $checkoutMode = $gatewayParams['CheckoutMode'] ?? 'mainnet';
         $context = array(
             'time_period' => $time_period,
             'order' => $order,
             'order_hash' => $show_order,
-            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits),
+            'crypto_rate_str' => $this->get_crypto_rate_from_params($order->value, $order->bits, $order->blockonomics_currency),
             'order_amount' => $order_amount,
             'payment_uri' => $this->get_payment_uri($crypto['uri'], $order->addr, $order_amount),
-            'crypto' => $crypto
+            'crypto' => $crypto,
+            'is_testnet' => ($checkoutMode === 'testnet')
         );
+
+        if ($order->blockonomics_currency === 'usdt') {
+            $address_parts = explode('-', $order->addr);
+            $order_receive_address = $address_parts[0];
+            $context['order_receive_address'] = $order_receive_address;
+        }
 
         $this->load_blockonomics_template($ca, 'checkout', $context);
     }
@@ -931,7 +1300,7 @@ class Blockonomics
         $order_hash = $this->getOrderHash($params['invoiceid'], $params['amount'], $params['currency'], $params['basecurrencyamount']);
 
         $order_params = [];
-        $active_cryptos = $this->getActiveCurrencies();
+        $active_cryptos = $this->getCheckoutCurrencies();
 
         // Check how many crypto currencies are activated
         if (count($active_cryptos) > 1) {
@@ -948,5 +1317,143 @@ class Blockonomics
         }
 
         return $order_params;
+    }
+
+    /*
+     * Get store setup from Blockonomics API
+     */
+    public function getStoreSetup() 
+    {
+        $api_key = $this->getApiKey();
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::STORES_URL);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . trim($api_key),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // Log the API call
+        logModuleCall(
+            'blockonomics',
+            'Get Store Setup - Request',
+            [
+                'url' => self::STORES_URL,
+                'headers' => $headers,
+                'method' => 'GET'
+            ],
+            null,
+            null,
+            [$api_key]
+        );
+        // Check for cURL errors
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            http_response_code(500);
+            return json_encode(['error' => 'cURL Error: ' . $error]);
+        }
+
+        curl_close($ch);
+
+        // Handle response based on status code
+        if ($http_code === 401) {
+            return json_encode(['error' => 'Invalid API key or unauthorized access']);
+        } elseif ($http_code !== 200) {
+            http_response_code($http_code);
+            return json_encode(['error' => 'Blockonomics API error',  'response' => $response]);
+        }
+
+        return $response;
+    }
+
+    function process_token_order($finish_order, $crypto, $txhash) {
+        include $this->getLangFilePath();
+
+        $order = $this->processOrderHash($finish_order, $crypto);
+
+        if (empty($order)) {
+            return;
+        }
+
+        $transactionExists = $this->blockonomicsTransactionExists($txhash);
+
+        if ($transactionExists) {
+            return;
+        }
+
+        $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
+
+        // Get callback URL for monitoring
+        $callback_secret = $this->getCallbackSecret();
+        $callback_url = $this->getCallbackUrl($callback_secret);
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $checkoutMode = $gatewayParams['CheckoutMode'] ?? 'mainnet';
+
+        // Prepare monitoring request
+        $monitor_url = self::BASE_URL . '/api/monitor_tx';
+        $post_data = array(
+            'txhash' => $txhash,
+            'crypto' => strtoupper($crypto),
+            'match_callback' => $callback_url,
+            'testnet' => ($checkoutMode === 'testnet') ? '1' : '0',
+        );
+
+        try {
+            $headers = [
+                'Authorization: Bearer ' . $this->getApiKey(),
+                'Content-Type: application/json'
+            ];
+            
+            $this->makePostRequest($monitor_url, $post_data, $headers);
+            
+            // Update invoice note
+            $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
+            $blockonomics_currency['name'] . " transaction id:\r" .
+                '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+
+            $this->updateOrderInDb($order->addr, $txhash, 0, 0);
+            $this->updateInvoiceNote($invoiceId, $invoiceNote);
+        } catch (Exception $e) {
+            exit("Error processing token order: {$e->getMessage()}");
+        }
+    }
+
+    /*
+     * Make a generic HTTP POST request with JSON data and optional headers
+     */
+    private function makePostRequest($url, $data, $headers = []) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        
+        if (!empty($headers)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        }
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            throw new Exception('Error: ' . $error);
+        }
+        
+        curl_close($ch);
+        
+        return [
+            'response' => $response,
+            'http_code' => $http_code
+        ];
     }
 }

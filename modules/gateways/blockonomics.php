@@ -1,6 +1,10 @@
 <?php
-
 require_once dirname(__FILE__) . '/blockonomics/blockonomics.php';
+
+if (!defined("WHMCS")) {
+    die("This file cannot be accessed directly");
+}
+
 
 use Blockonomics\Blockonomics;
 
@@ -26,11 +30,11 @@ function blockonomics_config()
             include $blockonomics->getLangFilePath();
             $system_url = \App::getSystemURL();
             $secret = $blockonomics->getCallbackSecret();
-            $active_currencies = json_encode($blockonomics->getActiveCurrencies());
             $callback_url = $blockonomics->getCallbackUrl($secret);
             $trans_text_system_url_error = $_BLOCKLANG['testSetup']['systemUrl']['error'];
             $trans_text_system_url_fix = $_BLOCKLANG['testSetup']['systemUrl']['fix'];
-            $trans_text_success = $_BLOCKLANG['testSetup']['success'];
+            $trans_text_success_btc = $_BLOCKLANG['testSetup']['success']['btc'];
+            $trans_text_success_usdt = $_BLOCKLANG['testSetup']['success']['usdt'];
             $trans_text_protocol_error = $_BLOCKLANG['testSetup']['protocol']['error'];
             $trans_text_protocol_fix = $_BLOCKLANG['testSetup']['protocol']['fix'];
             $trans_text_testing = $_BLOCKLANG['testSetup']['testing'];
@@ -94,29 +98,24 @@ function blockonomics_config()
             settingsHeader.textContent = 'Settings';
             settingsFieldArea.appendChild(settingsHeader);
 
-            //Currency header
-            const currencyRow = blockonomicsTable.insertRow( 11 );
-			currencyRow.insertCell(0);
-            const currencyFieldArea = currencyRow.insertCell(1);
-            
-            const currencyHeader = document.createElement('h4');
-            currencyHeader.style.cssText = headerStyles
-            currencyHeader.textContent = 'Currencies';
-            currencyFieldArea.appendChild(currencyHeader);
-
             /**
-			 * Generate Advanced Settings Button
+			 * Generate Advanced Settings Button and get the HTML elements
 			 */
-            //get advanced settings HTML elements 
-            const timePeriod = blockonomicsTable.rows[7];
-            const extraMargin = blockonomicsTable.rows[8];
-            const underSlack = blockonomicsTable.rows[9];
-            const confirmations = blockonomicsTable.rows[10];
+            const callbackUrl = blockonomicsTable.rows[7];
+            const timePeriod = blockonomicsTable.rows[8];
+            const extraMargin = blockonomicsTable.rows[9];
+            const underSlack = blockonomicsTable.rows[10];
+            const confirmations = blockonomicsTable.rows[11];
+            const checkoutMode = blockonomicsTable.rows[12];
+            const bchcurrencySettings = blockonomicsTable.rows[13];
 
+            callbackUrl.style.display = "none";
             timePeriod.style.display = "none";
             extraMargin.style.display = "none";
             underSlack.style.display = "none";
             confirmations.style.display = "none";
+            checkoutMode.style.display = "none";
+            bchcurrencySettings.style.display = "none";
 
             var advancedSettingsRow = blockonomicsTable.insertRow(7);
 			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
@@ -128,18 +127,30 @@ function blockonomics_config()
             advancedSettingsFieldArea.appendChild(advancedLink);
 
             let showingAdvancedSettings = false;
+            /**
+             * Get store name from Blockonomics API using API key and callback URL
+             *
+             * @return string Store name or empty string if error
+             */
+
 			advancedLink.onclick = function() {
                 advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
                 if (showingAdvancedSettings) {
+                    callbackUrl.style.display = "none";
                     timePeriod.style.display = "none";
                     extraMargin.style.display = "none";
                     underSlack.style.display = "none";
                     confirmations.style.display = "none";
+                    checkoutMode.style.display = "none";
+                    bchcurrencySettings.style.display = "none";
                 } else {
+                    callbackUrl.style.display = "table-row";
                     timePeriod.style.display = "table-row";
                     extraMargin.style.display = "table-row";
                     underSlack.style.display = "table-row";
                     confirmations.style.display = "table-row";
+                    checkoutMode.style.display = "table-row";
+                    bchcurrencySettings.style.display = "table-row";
                 }
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
@@ -156,44 +167,18 @@ function blockonomics_config()
 			 */
             const saveButtonCell = blockonomicsTable.rows[ blockonomicsTable.rows.length - 1 ].children[1];
             saveButtonCell.style.backgroundColor = "white";
+            const storeNameRow = blockonomicsTable.rows[5]; // Row after store name field
+            const newRow = blockonomicsTable.insertRow(6);
+            const labelCell = newRow.insertCell(0);
+            const buttonCell = newRow.insertCell(1);
+            buttonCell.style.backgroundColor = "white";
 
             const newBtn = document.createElement('BUTTON');
             newBtn.setAttribute('type', 'button');
             newBtn.className = "btn btn-primary";
             newBtn.textContent = "Test Setup";
 
-            saveButtonCell.appendChild(newBtn);
-
-            function reqListener (response, cells) {
-				var responseObj = {};
-                
-				try {
-					responseObj = JSON.parse(response);
-				} catch (err) {
-					var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
-					responseObj = {};
-                    Object.keys(cells).forEach(crypto => {
-					    responseObj[crypto] = '$trans_text_system_url_error ' + testSetupUrl + '. $trans_text_system_url_fix';
-                    });
-				}
-
-				if (Object.keys(responseObj).length) {
-                    Object.keys(cells).forEach(crypto => {
-                        let e = responseObj[crypto]
-                        if (e) {
-                            cells[crypto].innerHTML = "<label style='color:red;'>Error:</label> " + e +
-					"<br>For more information, please consult <a href='https://blockonomics.freshdesk.com/support/solutions/articles/33000215104-troubleshooting-unable-to-generate-new-address' target='_blank'>this troubleshooting article</a>";
-                        } else {
-                            cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";    
-                        }
-                    })
-				} else {
-                    Object.keys(cells).forEach(crypto => {
-                        cells[crypto].innerHTML = "<label style='color:green;'>$trans_text_success</label>";
-                    })
-				}
-				newBtn.disabled = false;
-			}
+            buttonCell.appendChild(newBtn);
 
             function handle_ajax_save(res, xhr, settings){
                 if (settings.url == "configgateways.php?action=save" && settings.data.includes("module=blockonomics")) {
@@ -205,7 +190,6 @@ function blockonomics_config()
                     // Do the Test
                     if (xhr.status == 200 && sessionStorage.getItem("runTest"))
                         doTest();
-                    
                     // Remove Test Session Key if exists
                     sessionStorage.removeItem("runTest");
                 }
@@ -217,6 +201,7 @@ function blockonomics_config()
                     jQuery(document).on('ajaxComplete', handle_ajax_save)
                 }
                 sessionStorage.setItem("runTest", true);
+                sessionStorage.setItem("updateStore", true);
                 if(saveButtonCell.querySelector('button[type=submit]')){
                     saveButtonCell.querySelector('button[type=submit]').click();
                 } else {
@@ -237,74 +222,65 @@ function blockonomics_config()
             }
 
             function doTest() {
-                const form = new FormData(saveButtonCell.closest('form'))
-                let activeCryptos = [];
+                const form = new FormData(saveButtonCell.closest('form'));
+                // Remove any existing response div
+                const existingResponse = document.getElementById('blockonomics-test-response');
+                if (existingResponse) {
+                    existingResponse.remove();
+                }
 
-                if(form.getAll('field[btcEnabled]').includes('on'))
-                    activeCryptos.push('btc');
-                
-                if(form.getAll('field[bchEnabled]').includes('on'))
-                    activeCryptos.push('bch');
+                // Create new response div below the test button
+                const responseDiv = document.createElement('div');
+                responseDiv.id = 'blockonomics-test-response';
+                responseDiv.style.marginTop = '10px';
+                buttonCell.appendChild(responseDiv);
 
-                let CELLS = {};
-                
-                // Fix for AJAX based Submission, removes previous elements before adding new
-                document.querySelectorAll('.blockonomics-test-row').forEach(el => el.remove());
-
-                activeCryptos.forEach(crypto => {
-                    rowFromBottom = (crypto === 'btc') ? 3 : 2
-                    CELLS[crypto] = addTestResultRow (rowFromBottom);
-                })
-
-                var testSetupUrl = "$system_url" + "modules/gateways/blockonomics/testsetup.php";
+                var testSetupUrl = "$system_url";
+                if (!testSetupUrl.endsWith('/')) {
+                    testSetupUrl += '/';
+                }
+                testSetupUrl += "modules/gateways/blockonomics/testsetup.php";
 
                 try {
                     var systemUrlProtocol = new URL("$system_url").protocol;
                 } catch (err) {
-                    var systemUrlProtocol = '';
+                    console.error("Error parsing URL:", err);
                 }
 
                 if (systemUrlProtocol != location.protocol) {
-                    Object.keys(CELLS).forEach(crypto => {
-                        let cell = CELLS[crypto]
-                        cell.innerHTML = "<label style='color:red;'>$trans_text_protocol_error</label> \
-                            $trans_text_protocol_fix";
-                    })
+                    responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label> 
+                        $trans_text_protocol_fix`;
                 } else {
-
-                    let oReq = new XMLHttpRequest();
-                    oReq.addEventListener("load", function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.addEventListener("load", function() {
                         if(this.status != 200) {
-                            let status_code = this.status
-                            let status_msg = this.statusText
-
-                            let response = {}
-                            Object.keys(CELLS).forEach(crypto => {
-                                response[crypto] = "An Error Occurred. Status Code: " + status_code + " (" + status_msg + ")"
-                            })
-                            reqListener(JSON.stringify(response), CELLS)
+                            responseDiv.innerHTML = '<label style="color:red;">Error: Network error occurred</label>';
                         } else {
-                            reqListener(this.responseText, CELLS)
-                        }
-                    });
-                    oReq.addEventListener("error", function(error) {
-                        let response = {}
-                        Object.keys(CELLS).forEach(crypto => {
-                            response[crypto] = "Network Error Occurred."
-                        })
-                        reqListener(JSON.stringify(response), CELLS)
-                    });
-                    oReq.open("GET", testSetupUrl);
-                    newBtn.disabled = true;
-                    Object.keys(CELLS).forEach(crypto => {
-                        let cell = CELLS[crypto]
-                        cell.innerHTML = "$trans_text_testing";
-                    })
-                    oReq.send();
-                    
-                }
+                            try {
+                                const response = JSON.parse(this.responseText);
+                                
+                                responseDiv.innerHTML = response;
 
-			}
+                            } catch (err) {
+                                console.error("Parse error:", err);
+                                responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error`;
+                            }
+                        }
+                        newBtn.disabled = false;
+                    });
+
+                    xhr.addEventListener("error", function(error) {
+                        console.error("XHR Error:", error);
+                        responseDiv.innerHTML = `<label style='color:red;'>Error:</label> Network Error Occurred.`;
+                        newBtn.disabled = false;
+                    });
+
+                    xhr.open("GET", testSetupUrl);
+                    newBtn.disabled = true;
+                    responseDiv.innerHTML = "$trans_text_testing";
+                    xhr.send();
+                }
+            }
 
             // For Non AJAX Based Submission
             if(sessionStorage.getItem("runTest") && !document.querySelector('#manage .errorbox')) {
@@ -321,6 +297,7 @@ HTML;
     include $blockonomics->getLangFilePath();
     $blockonomics->createOrderTableIfNotExist();
 
+
     $settings_array = [
         'FriendlyName' => [
             'Type' => 'System',
@@ -333,8 +310,22 @@ HTML;
     ];
     $settings_array['ApiKey'] = [
         'FriendlyName' => $_BLOCKLANG['apiKey']['title'],
-        'Description' => $_BLOCKLANG['apiKey']['description'],
+        'Description' => '<span class="api-key-description">' . $_BLOCKLANG['apiKey']['description'] . '</span>',
         'Type' => 'text',
+    ];
+    // Get current store name if it exists
+    $currentStoreName = null;
+    try {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $currentStoreName = $gatewayParams['StoreName'] ?? '';
+    } catch (Exception $e) {
+        $currentStoreName = '';
+    }
+
+    $settings_array['StoreName'] = [
+        'FriendlyName' => $_BLOCKLANG['storeName']['title'],
+        'Type' => 'label',
+        'Description' => $currentStoreName,
     ];
 
     $settings_array['CallbackSecret'] = [
@@ -382,17 +373,21 @@ HTML;
         ],
         'Description' => $_BLOCKLANG['confirmations']['description'],
     ];
-    $blockonomics_currencies = $blockonomics->getSupportedCurrencies();
-    foreach ($blockonomics_currencies as $code => $currency) {
-        $settings_array[$code . 'Enabled'] = [
-            'FriendlyName' => $currency['name'] .' (' . strtoupper($code) . ')',
-            'Type' => 'yesno',
-            'Description' => $_BLOCKLANG['enabled'][$code.'_description'],
-        ];
-        if ($code == 'btc') {
-            $settings_array[$code . 'Enabled']['Default'] = true;
-        }
-    }
+    $settings_array['CheckoutMode'] = [
+        'FriendlyName' => $_BLOCKLANG['checkoutMode']['title'],
+        'Type' => 'radio',
+        'Options' => [
+            'mainnet' => $_BLOCKLANG['checkoutMode']['mainnet'],
+            'testnet' => $_BLOCKLANG['checkoutMode']['testnet'],
+        ],
+        'Default' => 'mainnet',
+    ];
+    $settings_array['bchEnabled'] = [
+        'FriendlyName' => $_BLOCKLANG['enabled']['bch_title'],
+        'Type' => 'yesno',
+        'Description' => $_BLOCKLANG['enabled']['bch_description'],
+    ];
+
     return $settings_array;
 }
 
