@@ -1415,7 +1415,7 @@ class Blockonomics
             $this->makePostRequest($monitor_url, $post_data, $headers);
             
             // Update invoice note
-            $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . ' <img src="' . \App::getSystemURL() . 'modules/gateways/blockonomics/assets/img/usdt.png" style="max-width: 20px;"> ' . $blockonomics_currency['name'] . ' ' . $_BLOCKLANG['invoiceNote']['network'] . "</b>\r\r" .
+            $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
             $blockonomics_currency['name'] . " transaction id:\r" .
                 '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
 

@@ -34,8 +34,7 @@ $_BLOCKLANG['noCrypto']['message'] = 'Note to webmaster: Can be enabled via Setu
 
 // Callback
 $_BLOCKLANG['error']['secret'] = 'Secret verification failure';
-$_BLOCKLANG['invoiceNote']['waiting'] = 'Invoice will be automatically marked as paid on transaction confirm by the';
-$_BLOCKLANG['invoiceNote']['network'] = 'network. No further action is required.';
+$_BLOCKLANG['invoiceNote']['waiting'] = 'Invoice will be automatically marked as paid on transaction confirm by the network. No further action is required.';
 
 // Admin Menu
 $_BLOCKLANG['storeName']['title'] = 'Store Name';
