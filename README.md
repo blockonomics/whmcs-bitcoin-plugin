@@ -11,14 +11,11 @@ Accept bitcoin, bitcoin cash and USDT (ETH ERC-20) on your WHMCS site, payments 
 
 ## Screenshots ##
 
-![](screenshots/screenshot-1.png)<br>
-Checkout option
-
 ![](screenshots/screenshot-2.png)<br>
-Select Crypto
+USDT checkout
 
 ![](screenshots/screenshot-3.png)<br>
-Checkout screen
+Bitcoin checkout
 
 ![](screenshots/screenshot-4.png)<br>
 Blockonomics configuration
