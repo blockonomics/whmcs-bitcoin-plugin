@@ -2,7 +2,7 @@
 Accept bitcoin, bitcoin cash and USDT (ETH ERC-20) on your WHMCS site, payments go directly into your wallet
 
 ## Description ##
-- Accept bitcoin payments on your website with ease
+- No middle man. Payment goes straight to your wallet
 - On-site payment. Customers never leaves your store
 - Fast and easy setup. No waiting for API approvals
 
