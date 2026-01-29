@@ -15,7 +15,7 @@ class Blockonomics
 {
     private $version = '2.0';
 
-    const BASE_URL = 'https://www.blockonomics.co/';
+    const BASE_URL = 'https://www.blockonomics.co';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
     const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
@@ -26,11 +26,6 @@ class Blockonomics
     const BCH_PRICE_URL = self::BCH_BASE_URL . '/api/price';
     const BCH_NEW_ADDRESS_URL = self::BCH_BASE_URL . '/api/new_address';
 
-    const SET_CALLBACK_URL = self::BASE_URL . '/api/update_callback';
-    const GET_CALLBACKS_URL = self::BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
-
-    const BCH_SET_CALLBACK_URL = self::BCH_BASE_URL . '/api/update_callback';
-    const BCH_GET_CALLBACKS_URL = self::BCH_BASE_URL . '/api/address?&no_balance=true&only_xpub=true&get_callback=true';
 
     /*
      * Get the blockonomics version
