@@ -7,18 +7,18 @@
     <div class="bnomics-order-container">
         
         <!-- Spinner -->
-        <div class="bnomics-spinner-wrapper">
+        <div class="bnomics-spinner-wrapper" {if $crypto['code'] eq 'usdt'}style="display:none"{/if}>
             <div class="bnomics-spinner"></div>
         </div>
 
         <!-- Display Error -->
-        <div class="bnomics-display-error">
+        <div class="bnomics-display-error" style="display:none">
             <h2>{$_BLOCKLANG.error.render_error.title}</h2>
             <p>{$_BLOCKLANG.error.render_error.message}</p>
         </div>
-        
-        <!-- Blockonomics Checkout Panel -->    
-        <div class="bnomics-order-panel">
+
+        <!-- Blockonomics Checkout Panel -->
+        <div class="bnomics-order-panel" {if $crypto['code'] eq 'usdt'}style="display:block"{/if}>
             <table>
                 <tr>
                     <th class="bnomics-header">
@@ -38,7 +38,7 @@
                 <web3-payment
                     order_amount="{$order_amount}"
                     receive_address="{$order_receive_address}"
-                    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}"
+                    redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}&crypto=usdt"
                     {if $is_testnet}testnet{/if}
                 ></web3-payment>
             {else}
@@ -92,6 +92,7 @@
     </div>
 </div>
 
+{if $crypto['code'] neq 'usdt'}
 <script>
 var blockonomics_data = JSON.stringify({
     time_period: {$time_period},
@@ -106,3 +107,4 @@ var blockonomics_data = JSON.stringify({
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
 <script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js "></script>
+{/if}
