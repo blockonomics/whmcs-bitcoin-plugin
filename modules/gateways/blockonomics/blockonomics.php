@@ -149,51 +149,23 @@ class Blockonomics
         }
     }
 
-    // see from cache what cryptos are enabled on blockonomics store
-    public function getBlockonomicsEnabledCryptos($forceApiCall = false)
+    // Get enabled cryptos from cache (populated by Test Setup)
+    public function getBlockonomicsEnabledCryptos()
     {
-        // First try to get from cache unless forceApiCall is true
-        if (!$forceApiCall) {
-            try {
-                $result = Capsule::table('tblpaymentgateways')
-                    ->where('gateway', 'blockonomics')
-                    ->where('setting', 'EnabledCryptos')
-                    ->value('value');
+        try {
+            $result = Capsule::table('tblpaymentgateways')
+                ->where('gateway', 'blockonomics')
+                ->where('setting', 'EnabledCryptos')
+                ->value('value');
 
-                if ($result) {
-                    return explode(',', $result);
-                }
-            } catch (Exception $e) {
-                error_log("Failed to get enabled cryptos from cache: " . $e->getMessage());
+            if ($result) {
+                return explode(',', $result);
             }
+        } catch (Exception $e) {
+            error_log("Failed to get enabled cryptos from cache: " . $e->getMessage());
         }
 
-        // If cache is empty or forceApiCall is true, make API call
-        $enabled_cryptos = [];
-
-        // Make API call to get store info
-        $stores_response = json_decode($this->getStoreSetup());
-        if (!isset($stores_response) || isset($stores_response->error) || empty($stores_response->data)) {
-            return $enabled_cryptos;
-        }
-
-        $gatewayParams = getGatewayVariables('blockonomics');
-        $callback_url = $gatewayParams['CallbackURL'];
-
-        // Find the best matching store
-        $store_to_use = $this->findMatchingStore($stores_response->data, $callback_url);
-
-        // Get enabled cryptocurrencies from the store
-        if ($store_to_use) {
-            $enabled_cryptos = $this->getStoreEnabledCryptos($store_to_use);
-        }
-
-        // Save to cache for future use
-        if (!empty($enabled_cryptos)) {
-            $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
-        }
-
-        return $enabled_cryptos;
+        return [];
     }
 
     /**
@@ -1246,14 +1218,9 @@ class Blockonomics
         $time_period = isset($time_period_from_db) ? $time_period_from_db : '10';
 
         $order = $this->processOrderHash($show_order, $crypto);
-        $active_cryptos = $this->getCheckoutCurrencies();
 
-        if (is_string($crypto) && isset($active_cryptos[$crypto])) {
-            // If $crypto is a string key, get the full crypto object
-            $crypto = $active_cryptos[$crypto];
-        } else if (is_string($crypto)) {
-            // If $crypto is a string but not found in active_cryptos,
-            // create a basic crypto object with the necessary fields
+        // Get crypto details from supported currencies
+        if (is_string($crypto)) {
             $supported_currencies = $this->getSupportedCurrencies();
             if (isset($supported_currencies[$crypto])) {
                 $crypto = $supported_currencies[$crypto];
@@ -1372,9 +1339,20 @@ class Blockonomics
     function process_token_order($finish_order, $crypto, $txhash) {
         include $this->getLangFilePath();
 
+        // Validate txhash is provided
+        if (empty($txhash)) {
+            logModuleCall('blockonomics', 'process_token_order',
+                ['finish_order' => $finish_order, 'crypto' => $crypto],
+                'Error: txhash is empty', 'txhash parameter missing');
+            return;
+        }
+
         $order = $this->processOrderHash($finish_order, $crypto);
 
         if (empty($order)) {
+            logModuleCall('blockonomics', 'process_token_order',
+                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
+                'Error: order is empty', 'Could not process order hash');
             return;
         }
 
@@ -1401,22 +1379,43 @@ class Blockonomics
             'testnet' => ($checkoutMode === 'testnet') ? '1' : '0',
         );
 
+        // Log the monitor_tx attempt
+        logModuleCall('blockonomics', 'monitor_tx_request',
+            ['url' => $monitor_url, 'data' => $post_data],
+            null, null, [$this->getApiKey()]);
+
         try {
             $headers = [
                 'Authorization: Bearer ' . $this->getApiKey(),
                 'Content-Type: application/json'
             ];
-            
-            $this->makePostRequest($monitor_url, $post_data, $headers);
-            
+
+            $response = $this->makePostRequest($monitor_url, $post_data, $headers);
+
+            // Log the monitor_tx response
+            logModuleCall('blockonomics', 'monitor_tx_response',
+                ['url' => $monitor_url, 'data' => $post_data],
+                $response, null, [$this->getApiKey()]);
+
+            // Check if request was successful
+            if ($response['http_code'] !== 200) {
+                logModuleCall('blockonomics', 'monitor_tx_error',
+                    ['url' => $monitor_url, 'data' => $post_data],
+                    'HTTP ' . $response['http_code'] . ': ' . $response['response'],
+                    'monitor_tx API call failed', [$this->getApiKey()]);
+            }
+
             // Update invoice note
             $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
             $blockonomics_currency['name'] . " transaction id:\r" .
                 '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
 
             $this->updateOrderInDb($order->addr, $txhash, 0, 0);
-            $this->updateInvoiceNote($invoiceId, $invoiceNote);
+            $this->updateInvoiceNote($order->id_order, $invoiceNote);
         } catch (Exception $e) {
+            logModuleCall('blockonomics', 'process_token_order_exception',
+                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
+                $e->getMessage(), 'Exception occurred');
             exit("Error processing token order: {$e->getMessage()}");
         }
     }
