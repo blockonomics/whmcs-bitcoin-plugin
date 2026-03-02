@@ -1139,7 +1139,7 @@ class Blockonomics
             }
 
             // Test address generation
-            $response = $this->getNewAddress($code, true);
+            $response = $this->getNewAddress($code);
 
             if ($response->response_code == 200) {
                 $success_messages[] = strtoupper($code) . " ✅";
