@@ -449,8 +449,8 @@ class Blockonomics
 
         // Add error message if needed
         if (!isset($responseObj->message)) {
-            if (isset($responseObj->error_code) && $responseObj->error_code == 1002) {
-                $responseObj->message = 'Multiple wallets found. Please ensure callback URL is set correctly.';
+            if (isset($responseObj->error->message)) {
+                $responseObj->message = $responseObj->error->message;
             } else {
                 $responseObj->message = 'Error: (' . $responseObj->response_code . ') ' . $contents;
             }
