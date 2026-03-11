@@ -1067,6 +1067,9 @@ class Blockonomics
     {
         include $this->getLangFilePath();
 
+        // clear cached cryptos — only re-saved on successful store match
+        $this->saveBlockonomicsEnabledCryptos([]);
+
         $api_key = $this->getApiKey();
         if (empty($api_key)) {
             return ['message' => $_BLOCKLANG['testSetup']['emptyApi']];
