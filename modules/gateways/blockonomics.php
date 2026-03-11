@@ -240,14 +240,19 @@ function blockonomics_config()
                     console.error("Error parsing URL:", err);
                 }
 
+                var systemUrlHostname = '';
+                try { systemUrlHostname = new URL("$system_url").hostname; } catch(e) {}
+
                 if (systemUrlProtocol != location.protocol) {
-                    responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label> 
+                    responseDiv.innerHTML = `<label style='color:red;'>$trans_text_protocol_error</label>
                         $trans_text_protocol_fix`;
+                } else if (systemUrlHostname && systemUrlHostname !== location.hostname) {
+                    responseDiv.innerHTML = '<label style="color:red;">Error:</label> System URL hostname (<b>' + systemUrlHostname + '</b>) does not match current hostname (<b>' + location.hostname + '</b>). Update System URL in WHMCS General Settings.';
                 } else {
                     const xhr = new XMLHttpRequest();
                     xhr.addEventListener("load", function() {
                         if(this.status != 200) {
-                            responseDiv.innerHTML = '<label style="color:red;">Error: Network error occurred</label>';
+                            responseDiv.innerHTML = '<label style="color:red;">Error (HTTP ' + this.status + '):</label> Could not reach test setup endpoint.';
                         } else {
                             try {
                                 const data = JSON.parse(this.responseText);
