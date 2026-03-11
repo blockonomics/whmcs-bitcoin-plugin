@@ -38,6 +38,18 @@ function blockonomics_config()
             $trans_text_protocol_error = $_BLOCKLANG['testSetup']['protocol']['error'];
             $trans_text_protocol_fix = $_BLOCKLANG['testSetup']['protocol']['fix'];
             $trans_text_testing = $_BLOCKLANG['testSetup']['testing'];
+            $trans_text_store_name = $_BLOCKLANG['storeName']['title'];
+
+            // Build store info for initial display (JS will update after Test Setup)
+            $currentStoreName = '';
+            try {
+                $gatewayParams = getGatewayVariables('blockonomics');
+                $currentStoreName = $gatewayParams['StoreName'] ?? '';
+            } catch (Exception $e) {
+                $currentStoreName = '';
+            }
+            $enabledCryptos = $blockonomics->getBlockonomicsEnabledCryptos();
+            $initial_store_info = $blockonomics->buildStoreInfoHtml($currentStoreName, $enabledCryptos);
 
             return <<<HTML
 		<script type="text/javascript">
@@ -87,9 +99,18 @@ function blockonomics_config()
 			 * Generate Settings and Currency Headers
 			 */
             const blockonomicsTable = document.getElementById("Payment-Gateway-Config-blockonomics");
+
+            // Helper: find a config row by its field name instead of hardcoded index
+            function getFieldRow(fieldName) {
+                var input = blockonomicsTable.querySelector('[name="field[' + fieldName + ']"]');
+                if (!input) return null;
+                return input.closest('tr');
+            }
+
             const headerStyles = 'text-decoration: underline; margin-bottom: 2px';
-            //Add Settings Row
-            const settingsRow = blockonomicsTable.insertRow( 3 );
+            // Add Settings Row (after API Key row)
+            const apiKeyRow = getFieldRow('ApiKey');
+            const settingsRow = blockonomicsTable.insertRow(apiKeyRow ? apiKeyRow.rowIndex + 1 : 3);
             settingsRow.insertCell(0);
             const settingsFieldArea = settingsRow.insertCell(1);
 
@@ -98,65 +119,50 @@ function blockonomics_config()
             settingsHeader.textContent = 'Settings';
             settingsFieldArea.appendChild(settingsHeader);
 
+            // Store Name row (created via JS so WHMCS doesn't clear it on form save)
+            const storeNameRow = blockonomicsTable.insertRow(settingsRow.rowIndex + 1);
+            const storeNameLabel = storeNameRow.insertCell(0);
+            storeNameLabel.className = 'fieldlabel';
+            storeNameLabel.textContent = '$trans_text_store_name';
+            const storeNameField = storeNameRow.insertCell(1);
+            storeNameField.className = 'fieldarea';
+            storeNameField.innerHTML = '<span id="blockonomics-store-info">$initial_store_info</span>';
+
             /**
-			 * Generate Advanced Settings Button and get the HTML elements
+			 * Advanced Settings — find rows by field name
 			 */
-            const callbackUrl = blockonomicsTable.rows[7];
-            const timePeriod = blockonomicsTable.rows[8];
-            const extraMargin = blockonomicsTable.rows[9];
-            const underSlack = blockonomicsTable.rows[10];
-            const confirmations = blockonomicsTable.rows[11];
-            const checkoutMode = blockonomicsTable.rows[12];
-            const bchcurrencySettings = blockonomicsTable.rows[13];
+            const advancedRows = [
+                getFieldRow('CallbackURL'),
+                getFieldRow('TimePeriod'),
+                getFieldRow('Margin'),
+                getFieldRow('Slack'),
+                getFieldRow('Confirmations'),
+                getFieldRow('CheckoutMode'),
+                getFieldRow('bchEnabled')
+            ];
+            advancedRows.forEach(function(row) { if (row) row.style.display = "none"; });
 
-            callbackUrl.style.display = "none";
-            timePeriod.style.display = "none";
-            extraMargin.style.display = "none";
-            underSlack.style.display = "none";
-            confirmations.style.display = "none";
-            checkoutMode.style.display = "none";
-            bchcurrencySettings.style.display = "none";
-
-            var advancedSettingsRow = blockonomicsTable.insertRow(7);
+            // Insert toggle before the first advanced row
+            var firstAdvancedRow = advancedRows.find(function(r) { return r !== null; });
+            var advancedSettingsRow = blockonomicsTable.insertRow(firstAdvancedRow ? firstAdvancedRow.rowIndex : blockonomicsTable.rows.length - 1);
 			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
 			var advancedSettingsFieldArea = advancedSettingsRow.insertCell(1);
-            
+
             var advancedLink = document.createElement('a');
             advancedLink.classList.add('cursor');
             advancedLink.textContent = 'Advanced Settings ▼';
             advancedSettingsFieldArea.appendChild(advancedLink);
 
             let showingAdvancedSettings = false;
-            /**
-             * Get store name from Blockonomics API using API key and callback URL
-             *
-             * @return string Store name or empty string if error
-             */
 
 			advancedLink.onclick = function() {
-                advancedLink.textContent = (showingAdvancedSettings) ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
-                if (showingAdvancedSettings) {
-                    callbackUrl.style.display = "none";
-                    timePeriod.style.display = "none";
-                    extraMargin.style.display = "none";
-                    underSlack.style.display = "none";
-                    confirmations.style.display = "none";
-                    checkoutMode.style.display = "none";
-                    bchcurrencySettings.style.display = "none";
-                } else {
-                    callbackUrl.style.display = "table-row";
-                    timePeriod.style.display = "table-row";
-                    extraMargin.style.display = "table-row";
-                    underSlack.style.display = "table-row";
-                    confirmations.style.display = "table-row";
-                    checkoutMode.style.display = "table-row";
-                    bchcurrencySettings.style.display = "table-row";
-                }
+                advancedLink.textContent = showingAdvancedSettings ? 'Advanced Settings ▼' : 'Advanced Settings ▲';
+                var display = showingAdvancedSettings ? "none" : "table-row";
+                advancedRows.forEach(function(row) { if (row) row.style.display = display; });
                 showingAdvancedSettings = !showingAdvancedSettings;
 			}
 
             // Inject Custom Styles
-
             let style = document.createElement('style');
             style.setAttribute('type', 'text/css');
             style.innerHTML = 'a.cursor {cursor: pointer; text-decoration: none;} a.cursor:hover {text-decoration: none;}';
@@ -167,8 +173,8 @@ function blockonomics_config()
 			 */
             const saveButtonCell = blockonomicsTable.rows[ blockonomicsTable.rows.length - 1 ].children[1];
             saveButtonCell.style.backgroundColor = "white";
-            const storeNameRow = blockonomicsTable.rows[5]; // Row after store name field
-            const newRow = blockonomicsTable.insertRow(6);
+            // Insert Test Setup button row after Store Name row
+            const newRow = blockonomicsTable.insertRow(storeNameRow.rowIndex + 1);
             const labelCell = newRow.insertCell(0);
             const buttonCell = newRow.insertCell(1);
             buttonCell.style.backgroundColor = "white";
@@ -201,24 +207,11 @@ function blockonomics_config()
                     jQuery(document).on('ajaxComplete', handle_ajax_save)
                 }
                 sessionStorage.setItem("runTest", true);
-                sessionStorage.setItem("updateStore", true);
                 if(saveButtonCell.querySelector('button[type=submit]')){
                     saveButtonCell.querySelector('button[type=submit]').click();
                 } else {
                     saveButtonCell.querySelector('input[type=submit]').click();
                 }
-            }
- 
-            const addTestResultRow = (rowsFromBottom) => {
-                const testSetupResultRow = blockonomicsTable.insertRow(blockonomicsTable.rows.length - rowsFromBottom);
-                testSetupResultRow.classList.add('blockonomics-test-row');
-
-                const testSetupResultLabel = testSetupResultRow.insertCell(0);
-                const testSetupResultCell = testSetupResultRow.insertCell(1);
-                testSetupResultRow.style.display = "none";
-                testSetupResultRow.style.display = "table-row";
-                testSetupResultCell.className = "fieldarea";
-                return testSetupResultCell;
             }
 
             function doTest() {
@@ -257,10 +250,12 @@ function blockonomics_config()
                             responseDiv.innerHTML = '<label style="color:red;">Error: Network error occurred</label>';
                         } else {
                             try {
-                                const response = JSON.parse(this.responseText);
-                                
-                                responseDiv.innerHTML = response;
-
+                                const data = JSON.parse(this.responseText);
+                                responseDiv.innerHTML = data.message;
+                                if (data.store_info_html) {
+                                    var el = document.getElementById('blockonomics-store-info');
+                                    if (el) el.innerHTML = data.store_info_html;
+                                }
                             } catch (err) {
                                 console.error("Parse error:", err);
                                 responseDiv.innerHTML = `<label style='color:red;'>Error:</label> $trans_text_system_url_error`;
@@ -313,21 +308,6 @@ HTML;
         'Description' => '<span class="api-key-description">' . $_BLOCKLANG['apiKey']['description'] . '</span>',
         'Type' => 'text',
     ];
-    // Get current store name if it exists
-    $currentStoreName = null;
-    try {
-        $gatewayParams = getGatewayVariables('blockonomics');
-        $currentStoreName = $gatewayParams['StoreName'] ?? '';
-    } catch (Exception $e) {
-        $currentStoreName = '';
-    }
-
-    $settings_array['StoreName'] = [
-        'FriendlyName' => $_BLOCKLANG['storeName']['title'],
-        'Type' => 'label',
-        'Description' => $currentStoreName,
-    ];
-
     $settings_array['CallbackSecret'] = [
         'FriendlyName' => $_BLOCKLANG['callbackSecret']['title'],
         'Type' => 'text',

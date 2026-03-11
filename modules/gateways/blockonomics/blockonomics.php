@@ -149,6 +149,24 @@ class Blockonomics
         }
     }
 
+    // Build HTML for store info display (store name + crypto icons)
+    public function buildStoreInfoHtml($store_name, $enabled_cryptos)
+    {
+        if (empty($store_name)) {
+            return '';
+        }
+        $html = htmlspecialchars($store_name);
+        $iconBase = '../modules/gateways/blockonomics/assets/img/';
+        $validCryptos = array_keys($this->getSupportedCurrencies());
+        foreach ($enabled_cryptos as $code) {
+            $code = strtolower($code);
+            if (in_array($code, $validCryptos)) {
+                $html .= ' <img src="' . $iconBase . $code . '.png" alt="' . strtoupper($code) . '" style="height:18px;vertical-align:middle;margin-left:4px;" title="' . strtoupper($code) . '" />';
+            }
+        }
+        return $html;
+    }
+
     // Get enabled cryptos from cache (populated by Test Setup)
     public function getBlockonomicsEnabledCryptos()
     {
@@ -1043,7 +1061,7 @@ class Blockonomics
     /**
      * Run the test setup
      *
-     * @return string error message or success message
+     * @return array ['message' => string, 'store_info_html' => string|null]
      */
     public function testSetup()
     {
@@ -1051,32 +1069,32 @@ class Blockonomics
 
         $api_key = $this->getApiKey();
         if (empty($api_key)) {
-            return $_BLOCKLANG['testSetup']['emptyApi'];
+            return ['message' => $_BLOCKLANG['testSetup']['emptyApi']];
         }
 
         // Check configured wallets and validate API key
         $wallet_result = $this->get_wallets();
 
-        // If API key is invalid or any other error, return error
         if (!isset($wallet_result['is_valid']) || !$wallet_result['is_valid']) {
-            return isset($wallet_result['error']) ? $wallet_result['error'] : $_BLOCKLANG['testSetup']['incorrectApi'];
+            $error = isset($wallet_result['error']) ? $wallet_result['error'] : $_BLOCKLANG['testSetup']['incorrectApi'];
+            return ['message' => $error];
         }
 
-        // If no wallets configured, return error
         if (empty($wallet_result['wallets'])) {
-            return $_BLOCKLANG['testSetup']['addWallet'];
+            return ['message' => $_BLOCKLANG['testSetup']['addWallet']];
         }
 
-        // Now we check the configured stores on blockonomics dashboard
+        // Check configured stores on blockonomics dashboard
         $stores_response = json_decode($this->getStoreSetup());
 
         if (!isset($stores_response) || isset($stores_response->error)) {
-            return $_BLOCKLANG['testSetup']['blockedHttps'];
+            return ['message' => $_BLOCKLANG['testSetup']['blockedHttps']];
         }
 
         if (empty($stores_response->data)) {
-            return $_BLOCKLANG['testSetup']['addStore'];
+            return ['message' => $_BLOCKLANG['testSetup']['addStore']];
         }
+
         $gatewayParams = getGatewayVariables('blockonomics');
         $callback_url = $gatewayParams['CallbackURL'];
 
@@ -1086,46 +1104,35 @@ class Blockonomics
 
         switch ($match_type) {
             case 'none':
-                return $_BLOCKLANG['testSetup']['addStore'];
+                return ['message' => $_BLOCKLANG['testSetup']['addStore']];
             case 'empty':
-                return $_BLOCKLANG['testSetup']['setCallback'];
             case 'partial':
-                return $_BLOCKLANG['testSetup']['setCallback'];
+                return ['message' => $_BLOCKLANG['testSetup']['setCallback']];
             case 'exact':
-                // Exact match found, proceed with setup
                 break;
         }
 
         // Save store name
         try {
             $storeName = $gatewayParams['StoreName'];
-
             if (!isset($storeName) || $storeName !== $matching_store->name) {
                 Capsule::table('tblpaymentgateways')
                     ->updateOrInsert(
-                        [
-                            'gateway' => 'blockonomics',
-                            'setting' => 'StoreName'
-                        ],
-                        [
-                            'value' => $matching_store->name,
-                            'order' => 0
-                        ]
+                        ['gateway' => 'blockonomics', 'setting' => 'StoreName'],
+                        ['value' => $matching_store->name, 'order' => 0]
                     );
             }
         } catch (Exception $e) {
             error_log("Failed to save store name: " . $e->getMessage());
-            // Non-critical error, continue
         }
 
         // Get enabled cryptos from the store
         $enabled_cryptos = $this->getStoreEnabledCryptos($matching_store);
 
         if (empty($enabled_cryptos)) {
-            return $_BLOCKLANG['testSetup']['noCrypto'];
+            return ['message' => $_BLOCKLANG['testSetup']['noCrypto']];
         }
 
-        // Save the enabled cryptos to WHMCS settings for later use in checkout
         $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
 
         // Test address generation for each enabled crypto (except BCH)
@@ -1133,14 +1140,10 @@ class Blockonomics
         $error_messages = [];
 
         foreach ($enabled_cryptos as $code) {
-            // Skip BCH for testing
             if ($code == 'bch') {
                 continue;
             }
-
-            // Test address generation
             $response = $this->getNewAddress($code);
-
             if ($response->response_code == 200) {
                 $success_messages[] = strtoupper($code) . " ✅";
             } else {
@@ -1148,18 +1151,15 @@ class Blockonomics
             }
         }
 
-        // If we have errors, return them
-        if (!empty($error_messages)) {
-            return implode("<br>", $error_messages);
-        }
+        // Show errors first, then successes (user sees the full picture)
+        $all_messages = array_merge($error_messages, $success_messages);
+        $message = !empty($all_messages) ? implode("<br>", $all_messages) : "No cryptocurrencies were tested";
 
-        // If we have successes, return them
-        if (!empty($success_messages)) {
-            return implode("<br>", $success_messages);
-        }
-
-        // If we get here, something went wrong
-        return "No cryptocurrencies were tested";
+        $store_name = $matching_store->name ?? '';
+        return [
+            'message' => $message,
+            'store_info_html' => $this->buildStoreInfoHtml($store_name, $enabled_cryptos),
+        ];
     }    
 
     public function redirect_finish_order($order_hash)
