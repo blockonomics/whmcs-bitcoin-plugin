@@ -7,9 +7,31 @@ if (!defined("WHMCS")) {
 
 
 use Blockonomics\Blockonomics;
+use WHMCS\Database\Capsule;
 
 function blockonomics_config()
 {
+    // Clean up legacy CheckoutMode setting (removed in v2.1, was Sepolia testnet toggle)
+    // TODO: safe to remove from v2.3+
+    try {
+        Capsule::table('tblpaymentgateways')
+            ->where('gateway', 'blockonomics')
+            ->where('setting', 'CheckoutMode')
+            ->delete();
+    } catch (Exception $e) {
+        logActivity("Blockonomics: could not remove legacy CheckoutMode setting: " . $e->getMessage());
+    }
+
+    // Clean up legacy convertto setting (removed in v2.0, was multi-currency conversion)
+    // TODO: safe to remove from v2.3+
+    try {
+        Capsule::table('tblpaymentgateways')
+            ->where('gateway', 'blockonomics')
+            ->where('setting', 'convertto')
+            ->delete();
+    } catch (Exception $e) {
+        logActivity("Blockonomics: could not remove legacy convertto setting: " . $e->getMessage());
+    }
 
     // When loading plugin setup page, run custom JS
     add_hook(
@@ -137,7 +159,6 @@ function blockonomics_config()
                 getFieldRow('Margin'),
                 getFieldRow('Slack'),
                 getFieldRow('Confirmations'),
-                getFieldRow('CheckoutMode'),
                 getFieldRow('bchEnabled')
             ];
             advancedRows.forEach(function(row) { if (row) row.style.display = "none"; });
@@ -357,15 +378,6 @@ HTML;
             '0' => '0',
         ],
         'Description' => $_BLOCKLANG['confirmations']['description'],
-    ];
-    $settings_array['CheckoutMode'] = [
-        'FriendlyName' => $_BLOCKLANG['checkoutMode']['title'],
-        'Type' => 'radio',
-        'Options' => [
-            'mainnet' => $_BLOCKLANG['checkoutMode']['mainnet'],
-            'testnet' => $_BLOCKLANG['checkoutMode']['testnet'],
-        ],
-        'Default' => 'mainnet',
     ];
     $settings_array['bchEnabled'] = [
         'FriendlyName' => $_BLOCKLANG['enabled']['bch_title'],
