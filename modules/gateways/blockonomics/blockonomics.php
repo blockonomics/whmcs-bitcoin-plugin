@@ -397,70 +397,6 @@ class Blockonomics
     }
 
     /*
-     * Get new address from Blockonomics Api
-     */
-    public function getNewAddress($currency = 'btc', $reset = false)
-    {
-        // Determine base URL based on currency
-        $url = ($currency == 'bch') ? self::BCH_NEW_ADDRESS_URL : self::NEW_ADDRESS_URL;
-
-        // Get the callback URL from gateway cache
-        $gatewayParams = getGatewayVariables('blockonomics');
-        $callback_url = $gatewayParams['CallbackURL'];
-
-        // Build query parameters
-        $params = array();
-        if ($callback_url) {
-            $params['match_callback'] = $callback_url;
-        }
-        if ($reset) {
-            $params['reset'] = 1;
-        }
-        $params['crypto'] = strtoupper($currency);
-
-        // Append query parameters to URL
-        if (!empty($params)) {
-            $url .= '?' . http_build_query($params);
-        }
-
-        // Initialize cURL
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $this->getApiKey()
-        ]);
-
-        // Execute request
-        $contents = curl_exec($ch);
-        if (curl_errno($ch)) {
-            exit('Error:' . curl_error($ch));
-        }
-
-        // Create response object
-        $responseObj = json_decode($contents);
-        if (!isset($responseObj)) {
-            $responseObj = new stdClass();
-        }
-
-        // Add response code
-        $responseObj->response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        // Add error message if needed
-        if (!isset($responseObj->message)) {
-            if (isset($responseObj->error->message)) {
-                $responseObj->message = $responseObj->error->message;
-            } else {
-                $responseObj->message = 'Error: (' . $responseObj->response_code . ') ' . $contents;
-            }
-        }
-
-        curl_close($ch);
-        return $responseObj;
-    }
-
-    /*
      * Get user configured margin from database
      */
     public function getMargin()
@@ -1095,37 +1031,6 @@ class Blockonomics
         } catch (Exception $e) {
             exit("Unable to update order to blockonomics_orders: {$e->getMessage()}");
         }
-    }
-
-    /*
-     * Make a request using curl
-     */
-    public function doCurlCall($url, $post_content = '')
-    {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        if ($post_content) {
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
-        }
-        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        curl_setopt(
-            $ch,
-            CURLOPT_HTTPHEADER,
-            [
-                'Authorization: Bearer ' . $this->getApiKey(),
-                'Content-type: application/x-www-form-urlencoded',
-            ]
-        );
-        $data = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $responseObj = new stdClass();
-        $responseObj->data = json_decode($data);
-        $responseObj->response_code = $httpcode;
-        return $responseObj;
     }
 
     public function getLangFilePath($language = false)
