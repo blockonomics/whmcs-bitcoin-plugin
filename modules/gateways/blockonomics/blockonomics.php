@@ -452,7 +452,14 @@ class Blockonomics
     {
         $url = $this->buildPriceUrl($currency, $blockonomics_currency);
         $result = $this->makeGetRequest($url);
-        return json_decode($result['response'])->price;
+        if ($result['http_code'] != 200) {
+            throw new Exception("HTTP {$result['http_code']}: " . substr($result['response'], 0, 200));
+        }
+        $decoded = json_decode($result['response']);
+        if (!isset($decoded->price) || empty($decoded->price)) {
+            throw new Exception("Missing/empty price in response: " . substr($result['response'], 0, 200));
+        }
+        return $decoded->price;
     }
 
     /*
@@ -641,6 +648,9 @@ class Blockonomics
         try {
             $price = $this->fetchPrice($currency, $blockonomics_currency);
         } catch (Exception $e) {
+            logModuleCall('blockonomics', 'price_api_error',
+                ['currency' => $currency, 'crypto' => $blockonomics_currency],
+                $e->getMessage(), $e->getMessage());
             exit("Error getting price from Blockonomics! {$e->getMessage()}");
         }
         return $this->applyMarginAndConvertToBits($fiat_amount, $price, $blockonomics_currency);
@@ -863,6 +873,9 @@ class Blockonomics
     {
         $api_results = $this->fetchOrderDataParallel($order->currency, $blockonomics_currency);
         if (isset($api_results['error'])) {
+            logModuleCall('blockonomics', 'checkout_api_error',
+                ['currency' => $order->currency, 'crypto' => $blockonomics_currency],
+                $api_results['error'], $api_results['error']);
             exit($api_results['error']);
         }
 

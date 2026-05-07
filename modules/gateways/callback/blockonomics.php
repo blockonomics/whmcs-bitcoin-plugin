@@ -39,6 +39,10 @@ $txid = htmlspecialchars($_GET['txid']);
 $secret_value = $blockonomics->getCallbackSecret();
 
 if ($secret_value != $secret) {
+    logModuleCall('blockonomics', 'callback_secret_mismatch',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status],
+        'Secret mismatch - callback rejected');
+
     $transactionStatus = $_BLOCKLANG['error']['secret'];
     $success = false;
 
@@ -50,6 +54,14 @@ $order = $blockonomics->getOrderByAddress($addr);
 if (!$order || !$order['order_id']) {
     $order = $blockonomics->getOrderBytxn($txid);
 }
+
+if (!$order || !$order['order_id']) {
+    logModuleCall('blockonomics', 'callback_no_matching_order',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value],
+        'No order found for callback');
+    exit();
+}
+
 $invoiceId = $order['order_id'];
 $bits = $order['bits'];
 
