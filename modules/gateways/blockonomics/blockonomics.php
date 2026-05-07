@@ -583,7 +583,13 @@ class Blockonomics
 
         if ($address_code != 200) {
             $err = json_decode($address_body);
-            $msg = $err->error->message ?? $err->message ?? "Error: ($address_code) $address_body";
+            if (isset($err->error->message)) {
+                $msg = $err->error->message;
+            } elseif (isset($err->message)) {
+                $msg = $err->message;
+            } else {
+                $msg = "Error: ($address_code) $address_body";
+            }
             return ['error' => $msg];
         }
         $address_obj = json_decode($address_body);
