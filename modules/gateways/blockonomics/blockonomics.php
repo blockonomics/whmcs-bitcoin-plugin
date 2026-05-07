@@ -520,20 +520,100 @@ class Blockonomics
     }
 
     /*
-     * Convert fiat amount to Blockonomics currency
+     * Build new_address API URL for the given crypto
      */
-    public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
+    public function buildNewAddressUrl($blockonomics_currency)
     {
-        try {
-            $price = $this->fetchPrice($currency, $blockonomics_currency);
+        $url = ($blockonomics_currency === 'bch') ? self::BCH_NEW_ADDRESS_URL : self::NEW_ADDRESS_URL;
 
-            $margin = floatval($this->getMargin());
-            if ($margin > 0) {
-                // lower price means customers need to pay more BTC for the same fiat amount
-                $price = $price * 100 / (100 + $margin);
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'];
+
+        $params = ['crypto' => strtoupper($blockonomics_currency)];
+        if ($callback_url) {
+            $params['match_callback'] = $callback_url;
+        }
+
+        return $url . '?' . http_build_query($params);
+    }
+
+    /*
+     * Fetch new_address and price in parallel via curl_multi
+     * Returns ['address' => string, 'price' => float] on success, ['error' => string] on failure
+     */
+    public function fetchOrderDataParallel($currency, $blockonomics_currency)
+    {
+        $address_url = $this->buildNewAddressUrl($blockonomics_currency);
+        $price_url = $this->buildPriceUrl($currency, $blockonomics_currency);
+
+        $address_ch = curl_init();
+        curl_setopt($address_ch, CURLOPT_URL, $address_url);
+        curl_setopt($address_ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($address_ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($address_ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $this->getApiKey()
+        ]);
+
+        $price_ch = curl_init();
+        curl_setopt($price_ch, CURLOPT_URL, $price_url);
+        curl_setopt($price_ch, CURLOPT_RETURNTRANSFER, 1);
+
+        $mh = curl_multi_init();
+        curl_multi_add_handle($mh, $address_ch);
+        curl_multi_add_handle($mh, $price_ch);
+
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh);
             }
-        } catch (Exception $e) {
-            exit("Error getting price from Blockonomics! {$e->getMessage()}");
+        } while ($running > 0);
+
+        $address_body = curl_multi_getcontent($address_ch);
+        $address_code = curl_getinfo($address_ch, CURLINFO_HTTP_CODE);
+        $price_body = curl_multi_getcontent($price_ch);
+        $price_code = curl_getinfo($price_ch, CURLINFO_HTTP_CODE);
+
+        curl_multi_remove_handle($mh, $address_ch);
+        curl_multi_remove_handle($mh, $price_ch);
+        curl_close($address_ch);
+        curl_close($price_ch);
+        curl_multi_close($mh);
+
+        if ($address_code != 200) {
+            $err = json_decode($address_body);
+            $msg = $err->error->message ?? $err->message ?? "Error: ($address_code) $address_body";
+            return ['error' => $msg];
+        }
+        $address_obj = json_decode($address_body);
+        if (!isset($address_obj->address) || empty($address_obj->address)) {
+            return ['error' => 'Could not generate address'];
+        }
+
+        if ($price_code != 200) {
+            return ['error' => "Error getting price from Blockonomics: ($price_code) $price_body"];
+        }
+        $price_obj = json_decode($price_body);
+        if (!isset($price_obj->price) || empty($price_obj->price)) {
+            return ['error' => 'Could not get price from Blockonomics'];
+        }
+
+        return [
+            'address' => $address_obj->address,
+            'price' => $price_obj->price,
+        ];
+    }
+
+    /*
+     * Apply merchant margin and convert fiat amount to crypto smallest unit (satoshi/wei)
+     */
+    public function applyMarginAndConvertToBits($fiat_amount, $price, $blockonomics_currency)
+    {
+        $margin = floatval($this->getMargin());
+        if ($margin > 0) {
+            // lower price means customers need to pay more crypto for the same fiat amount
+            $price = $price * 100 / (100 + $margin);
         }
 
         $supportedCurrency = $this->getSupportedCurrencies();
@@ -541,6 +621,19 @@ class Blockonomics
 
         $multiplier = pow(10, $crypto['decimals']);
         return intval($multiplier * $fiat_amount / $price);
+    }
+
+    /*
+     * Convert fiat amount to Blockonomics currency
+     */
+    public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
+    {
+        try {
+            $price = $this->fetchPrice($currency, $blockonomics_currency);
+        } catch (Exception $e) {
+            exit("Error getting price from Blockonomics! {$e->getMessage()}");
+        }
+        return $this->applyMarginAndConvertToBits($fiat_amount, $price, $blockonomics_currency);
     }
 
     /**
@@ -758,19 +851,19 @@ class Blockonomics
      */
     public function createNewCryptoOrder($order, $blockonomics_currency)
     {
-        $new_addresss_response = $this->getNewAddress($blockonomics_currency);
-        if ($new_addresss_response->response_code == 200) {
-            if ($blockonomics_currency === 'usdt') {
-                $order->addr = $new_addresss_response->address . '-' . $order->id_order;
-            } else {
-                $order->addr = $new_addresss_response->address;
-            }
+        $api_results = $this->fetchOrderDataParallel($order->currency, $blockonomics_currency);
+        if (isset($api_results['error'])) {
+            exit($api_results['error']);
+        }
+
+        if ($blockonomics_currency === 'usdt') {
+            $order->addr = $api_results['address'] . '-' . $order->id_order;
         } else {
-            exit($new_addresss_response->message);
+            $order->addr = $api_results['address'];
         }
 
         $order->blockonomics_currency = $blockonomics_currency;
-        $order->bits = $this->convertFiatToBlockonomicsCurrency($order->value, $order->currency, $order->blockonomics_currency);
+        $order->bits = $this->applyMarginAndConvertToBits($order->value, $api_results['price'], $blockonomics_currency);
         $order->timestamp = time();
         $order->status = -1;
         $order->time_remaining = $this->getTimePeriod()*60;
