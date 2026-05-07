@@ -161,7 +161,7 @@ class Blockonomics
         foreach ($enabled_cryptos as $code) {
             $code = strtolower($code);
             if (in_array($code, $validCryptos)) {
-                $html .= ' <img src="' . $iconBase . $code . '.png" alt="' . strtoupper($code) . '" style="height:18px;vertical-align:middle;margin-left:4px;" title="' . strtoupper($code) . '" />';
+                $html .= ' <img src="' . $iconBase . $code . '.svg" alt="' . strtoupper($code) . '" style="height:18px;vertical-align:middle;margin-left:4px;" title="' . strtoupper($code) . '" />';
             }
         }
         return $html;
