@@ -1,4 +1,4 @@
-<link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css">
+<link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css?v={$plugin_version}">
 {if $crypto['code'] eq 'usdt'}
 <script type="text/javascript" src="https://www.blockonomics.co/js/web3-payment.js"></script>
 {/if}
@@ -104,7 +104,7 @@ var blockonomics_data = JSON.stringify({
 })
 </script>
 
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js"></script>
-<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js "></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/reconnecting-websocket.min.js?v={$plugin_version}"></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/vendors/qrious.min.js?v={$plugin_version}"></script>
+<script type="text/javascript" src="{$WEB_ROOT}/modules/gateways/blockonomics/assets/js/checkout.js?v={$plugin_version}"></script>
 {/if}

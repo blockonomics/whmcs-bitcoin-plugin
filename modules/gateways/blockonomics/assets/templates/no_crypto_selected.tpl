@@ -1,4 +1,4 @@
-<link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css">
+<link rel="stylesheet" type="text/css" href="{$WEB_ROOT}/modules/gateways/blockonomics/assets/css/order.css?v={$plugin_version}">
 
 <div class="bnomics-order-container">
     <h3>

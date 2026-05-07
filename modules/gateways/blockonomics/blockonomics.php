@@ -1258,6 +1258,8 @@ class Blockonomics
 
     public function load_blockonomics_template($ca, $template, $context=array())
     {
+        // Inject plugin version so templates can cache-bust asset URLs (?v=...)
+        $context['plugin_version'] = $this->getVersion();
         foreach ($context as $key => $value) {
             $ca->assign($key, $value);
         }
