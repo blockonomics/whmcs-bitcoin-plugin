@@ -499,23 +499,33 @@ class Blockonomics
     }
 
     /*
+     * Build price API URL for the given fiat currency and crypto
+     */
+    public function buildPriceUrl($currency, $blockonomics_currency)
+    {
+        if ($blockonomics_currency === 'bch') {
+            return self::BCH_PRICE_URL . '?currency=' . $currency;
+        }
+        return self::PRICE_URL . '?currency=' . $currency . '&crypto=' . strtoupper($blockonomics_currency);
+    }
+
+    /*
+     * Fetch price from Blockonomics API
+     */
+    public function fetchPrice($currency, $blockonomics_currency)
+    {
+        $url = $this->buildPriceUrl($currency, $blockonomics_currency);
+        $result = $this->makeGetRequest($url);
+        return json_decode($result['response'])->price;
+    }
+
+    /*
      * Convert fiat amount to Blockonomics currency
      */
     public function convertFiatToBlockonomicsCurrency($fiat_amount, $currency, $blockonomics_currency = 'btc')
     {
         try {
-            if ($blockonomics_currency === 'usdt') {
-                $url = 'https://min-api.cryptocompare.com/data/price?fsym=' . $blockonomics_currency . '&tsyms=' . $currency;
-                $result = $this->makeGetRequest($url);
-                $data = json_decode($result['response']);
-                $price = $data->{strtoupper($currency)};
-            } else {
-                $url = ($blockonomics_currency == 'btc') ?
-                    self::PRICE_URL . '?currency=' . $currency :
-                    self::BCH_PRICE_URL . '?currency=' . $currency;
-                $result = $this->makeGetRequest($url);
-                $price = json_decode($result['response'])->price;
-            }
+            $price = $this->fetchPrice($currency, $blockonomics_currency);
 
             $margin = floatval($this->getMargin());
             if ($margin > 0) {
