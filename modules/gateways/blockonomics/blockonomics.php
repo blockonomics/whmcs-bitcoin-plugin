@@ -606,6 +606,74 @@ class Blockonomics
     }
 
     /*
+     * Test new_address API for multiple cryptos in parallel via curl_multi
+     * Returns ['success_messages' => [...], 'error_messages' => [...]]
+     */
+    public function testCryptos($enabled_cryptos)
+    {
+        $success_messages = [];
+        $error_messages = [];
+
+        // BCH not testable via stores API (separate infrastructure)
+        $cryptos_to_test = array_filter($enabled_cryptos, function ($code) {
+            return $code !== 'bch';
+        });
+        if (empty($cryptos_to_test)) {
+            return ['success_messages' => $success_messages, 'error_messages' => $error_messages];
+        }
+
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($cryptos_to_test as $code) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $this->buildNewAddressUrl($code));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $this->getApiKey()
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$code] = $ch;
+        }
+
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh);
+            }
+        } while ($running > 0);
+
+        foreach ($handles as $code => $ch) {
+            $body = curl_multi_getcontent($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $obj = json_decode($body);
+
+            if ($http_code == 200 && isset($obj->address) && !empty($obj->address)) {
+                $success_messages[] = strtoupper($code) . " ✅";
+            } else {
+                if (isset($obj->error->message)) {
+                    $msg = $obj->error->message;
+                } elseif (isset($obj->message)) {
+                    $msg = $obj->message;
+                } else {
+                    $msg = "Error: ($http_code) $body";
+                }
+                $error_messages[] = strtoupper($code) . ": " . $msg;
+            }
+
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($mh);
+
+        return [
+            'success_messages' => $success_messages,
+            'error_messages' => $error_messages,
+        ];
+    }
+
+    /*
      * Apply merchant margin and convert fiat amount to crypto smallest unit (satoshi/wei)
      */
     public function applyMarginAndConvertToBits($fiat_amount, $price, $blockonomics_currency)
@@ -1241,21 +1309,9 @@ class Blockonomics
 
         $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
 
-        // Test address generation for each enabled crypto (except BCH)
-        $success_messages = [];
-        $error_messages = [];
-
-        foreach ($enabled_cryptos as $code) {
-            if ($code == 'bch') {
-                continue;
-            }
-            $response = $this->getNewAddress($code);
-            if ($response->response_code == 200) {
-                $success_messages[] = strtoupper($code) . " ✅";
-            } else {
-                $error_messages[] = strtoupper($code) . ": " . $response->message;
-            }
-        }
+        $test_results = $this->testCryptos($enabled_cryptos);
+        $success_messages = $test_results['success_messages'];
+        $error_messages = $test_results['error_messages'];
 
         // Show errors first, then successes (user sees the full picture)
         $all_messages = array_merge($error_messages, $success_messages);
