@@ -155,7 +155,7 @@ class Blockonomics
         if (empty($store_name)) {
             return '';
         }
-        $html = htmlspecialchars($store_name);
+        $html = htmlspecialchars($store_name, ENT_QUOTES);
         $iconBase = '../modules/gateways/blockonomics/assets/img/';
         $validCryptos = array_keys($this->getSupportedCurrencies());
         foreach ($enabled_cryptos as $code) {
