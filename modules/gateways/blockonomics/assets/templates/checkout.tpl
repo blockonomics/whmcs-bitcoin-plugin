@@ -12,7 +12,7 @@
         </div>
 
         <!-- Display Error -->
-        <div class="bnomics-display-error" style="display:none">
+        <div class="bnomics-display-error" {if $crypto['code'] eq 'usdt'}style="display:none"{/if}>
             <h2>{$_BLOCKLANG.error.render_error.title}</h2>
             <p>{$_BLOCKLANG.error.render_error.message}</p>
         </div>
