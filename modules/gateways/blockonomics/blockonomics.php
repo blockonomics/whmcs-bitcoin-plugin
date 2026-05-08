@@ -509,7 +509,9 @@ class Blockonomics
         do {
             curl_multi_exec($mh, $running);
             if ($running) {
-                curl_multi_select($mh);
+                if (curl_multi_select($mh) === -1) {
+                    usleep(100);
+                }
             }
         } while ($running > 0);
 
@@ -589,7 +591,9 @@ class Blockonomics
         do {
             curl_multi_exec($mh, $running);
             if ($running) {
-                curl_multi_select($mh);
+                if (curl_multi_select($mh) === -1) {
+                    usleep(100);
+                }
             }
         } while ($running > 0);
 
