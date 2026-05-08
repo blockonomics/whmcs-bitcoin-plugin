@@ -168,6 +168,8 @@ class Blockonomics
     }
 
     // Get enabled cryptos from cache (populated by Test Setup)
+    // Lazy-fills cache from Blockonomics stores API on miss — keeps checkout
+    // working on fresh installs and after transient Test Setup failures
     public function getBlockonomicsEnabledCryptos()
     {
         try {
@@ -183,7 +185,37 @@ class Blockonomics
             error_log("Failed to get enabled cryptos from cache: " . $e->getMessage());
         }
 
-        return [];
+        $cryptos = $this->fetchEnabledCryptosFromApi();
+        if (!empty($cryptos)) {
+            $this->saveBlockonomicsEnabledCryptos($cryptos);
+        }
+        return $cryptos;
+    }
+
+    /*
+     * Fetch enabled cryptos from Blockonomics stores API for lazy cache fill
+     * Returns [] on any failure (no credentials, network error, no matching store)
+     */
+    private function fetchEnabledCryptosFromApi()
+    {
+        if (empty($this->getApiKey()) || empty($this->getCallbackSecret())) {
+            return [];
+        }
+        try {
+            $stores_response = json_decode($this->getStoreSetup());
+            if (!isset($stores_response->data) || !is_array($stores_response->data)) {
+                return [];
+            }
+            $callback_url = $this->getCallbackUrl($this->getCallbackSecret());
+            $match = $this->findMatchingStore($stores_response->data, $callback_url);
+            if (!$match['store']) {
+                return [];
+            }
+            return $this->getStoreEnabledCryptos($match['store']);
+        } catch (Exception $e) {
+            error_log("Failed to lazy-fetch enabled cryptos: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
