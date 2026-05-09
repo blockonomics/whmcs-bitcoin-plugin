@@ -1458,6 +1458,10 @@ class Blockonomics
         return $response;
     }
 
+    /*
+     * Submit USDT txhash to Blockonomics monitor_tx, mark order waiting, write invoice note
+     * Returns true on success (or idempotent re-submission), false on any failure
+     */
     function process_token_order($finish_order, $crypto, $txhash) {
         include $this->getLangFilePath();
 
@@ -1466,7 +1470,7 @@ class Blockonomics
             logModuleCall('blockonomics', 'process_token_order',
                 ['finish_order' => $finish_order, 'crypto' => $crypto],
                 'Error: txhash is empty', 'txhash parameter missing');
-            return;
+            return false;
         }
 
         $order = $this->processOrderHash($finish_order, $crypto);
@@ -1475,13 +1479,11 @@ class Blockonomics
             logModuleCall('blockonomics', 'process_token_order',
                 ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
                 'Error: order is empty', 'Could not process order hash');
-            return;
+            return false;
         }
 
-        $transactionExists = $this->blockonomicsTransactionExists($txhash);
-
-        if ($transactionExists) {
-            return;
+        if ($this->blockonomicsTransactionExists($txhash)) {
+            return true;
         }
 
         $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
@@ -1516,12 +1518,13 @@ class Blockonomics
                 ['url' => $monitor_url, 'data' => $post_data],
                 $response, null, [$this->getApiKey()]);
 
-            // Check if request was successful
+            // Bail out without touching order/invoice if Blockonomics did not register the txhash
             if ($response['http_code'] !== 200) {
                 logModuleCall('blockonomics', 'monitor_tx_error',
                     ['url' => $monitor_url, 'data' => $post_data],
                     'HTTP ' . $response['http_code'] . ': ' . $response['response'],
                     'monitor_tx API call failed', [$this->getApiKey()]);
+                return false;
             }
 
             // Update invoice note
@@ -1531,11 +1534,12 @@ class Blockonomics
 
             $this->updateOrderInDb($order->addr, $txhash, 0, 0);
             $this->updateInvoiceNote($order->id_order, $invoiceNote);
+            return true;
         } catch (Exception $e) {
             logModuleCall('blockonomics', 'process_token_order_exception',
                 ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
                 $e->getMessage(), 'Exception occurred');
-            exit("Error processing token order: {$e->getMessage()}");
+            return false;
         }
     }
 

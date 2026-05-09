@@ -34,6 +34,7 @@ $_BLOCKLANG['noCrypto']['message'] = 'Note to webmaster: Can be enabled via Setu
 
 // Callback
 $_BLOCKLANG['error']['secret'] = 'Secret verification failure';
+$_BLOCKLANG['error']['paymentFailed'] = 'Payment could not be processed. Please contact the merchant before resubmitting.';
 $_BLOCKLANG['invoiceNote']['waiting'] = 'Invoice will be automatically marked as paid on transaction confirm by the network. No further action is required.';
 
 // Admin Menu

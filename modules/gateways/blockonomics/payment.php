@@ -44,8 +44,10 @@ if($crypto === "empty"){
         "order_hash" => $select_crypto
     ));
 }else if ($finish_order) {
-    if ($crypto == "usdt"){
-        $blockonomics->process_token_order($finish_order, $crypto, $txhash); 
+    if ($crypto == "usdt") {
+        if (!$blockonomics->process_token_order($finish_order, $crypto, $txhash)) {
+            exit($_BLOCKLANG['error']['paymentFailed']);
+        }
     }
     $blockonomics->redirect_finish_order($finish_order);
 }else if ($get_order && $crypto) {
