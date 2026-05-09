@@ -1482,7 +1482,9 @@ class Blockonomics
             return false;
         }
 
-        if ($this->blockonomicsTransactionExists($txhash)) {
+        $transactionExists = $this->blockonomicsTransactionExists($txhash);
+
+        if ($transactionExists) {
             return true;
         }
 
