@@ -81,11 +81,11 @@ $systemUrl = \App::getSystemURL();
 if ($status < $confirmations) {
     if ($blockonomics_currency_code == 'usdt') {
         $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
-        $blockonomics_currency->name . " transaction id:\r" .
+        $blockonomics_currency['name'] . " transaction id:\r" .
             '<a target="_blank" href="https://www.etherscan.io/tx/' . $txid . '">' . $txid . '</a>';
     } else {
         $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
-        $blockonomics_currency->name . " transaction id:\r" .
+        $blockonomics_currency['name'] . " transaction id:\r" .
             '<a target="_blank" href="https://' . $subdomain . ".blockonomics.co/api/tx?txid=$txid&addr=$addr\">$txid</a>";
     }
     $blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
