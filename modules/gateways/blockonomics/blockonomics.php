@@ -549,8 +549,10 @@ class Blockonomics
 
         $address_body = curl_multi_getcontent($address_ch);
         $address_code = curl_getinfo($address_ch, CURLINFO_HTTP_CODE);
+        $address_curl_err = curl_error($address_ch);
         $price_body = curl_multi_getcontent($price_ch);
         $price_code = curl_getinfo($price_ch, CURLINFO_HTTP_CODE);
+        $price_curl_err = curl_error($price_ch);
 
         curl_multi_remove_handle($mh, $address_ch);
         curl_multi_remove_handle($mh, $price_ch);
@@ -564,6 +566,8 @@ class Blockonomics
                 $msg = $err->error->message;
             } elseif (isset($err->message)) {
                 $msg = $err->message;
+            } elseif ($address_curl_err) {
+                $msg = "Network error: $address_curl_err";
             } else {
                 $msg = "Error: ($address_code) $address_body";
             }
@@ -575,6 +579,9 @@ class Blockonomics
         }
 
         if ($price_code != 200) {
+            if ($price_curl_err) {
+                return ['error' => "Network error getting price from Blockonomics: $price_curl_err"];
+            }
             return ['error' => "Error getting price from Blockonomics: ($price_code) $price_body"];
         }
         $price_obj = json_decode($price_body);
