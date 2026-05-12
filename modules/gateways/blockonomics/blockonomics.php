@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '2.0';
+    private $version = '2.1-rc1';
 
     const BASE_URL = 'https://www.blockonomics.co';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
@@ -198,7 +198,9 @@ class Blockonomics
      */
     private function fetchEnabledCryptosFromApi()
     {
-        if (empty($this->getApiKey()) || empty($this->getCallbackSecret())) {
+        $gatewayParams = getGatewayVariables('blockonomics');
+        $callback_url = $gatewayParams['CallbackURL'] ?? '';
+        if (empty($this->getApiKey()) || empty($callback_url)) {
             return [];
         }
         try {
@@ -206,7 +208,6 @@ class Blockonomics
             if (!isset($stores_response->data) || !is_array($stores_response->data)) {
                 return [];
             }
-            $callback_url = $this->getCallbackUrl($this->getCallbackSecret());
             $match = $this->findMatchingStore($stores_response->data, $callback_url);
             if (!$match['store']) {
                 return [];
