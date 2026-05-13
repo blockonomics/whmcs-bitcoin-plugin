@@ -19,7 +19,6 @@ class Blockonomics
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
     const STORES_URL = self::BASE_URL . '/api/v2/stores?wallets=true';
-    const WALLETS_URL = self::BASE_URL . '/api/v2/wallets';
     const NEW_ADDRESS_URL = self::BASE_URL . '/api/new_address';
     const PRICE_URL = self::BASE_URL . '/api/price';
 
@@ -208,11 +207,11 @@ class Blockonomics
             if (!isset($stores_response->data) || !is_array($stores_response->data)) {
                 return [];
             }
-            $match = $this->findMatchingStore($stores_response->data, $callback_url);
-            if (!$match['store']) {
+            $matching_store = $this->findExactMatchingStore($stores_response->data, $callback_url);
+            if (!$matching_store) {
                 return [];
             }
-            return $this->getStoreEnabledCryptos($match['store']);
+            return $this->getStoreEnabledCryptos($matching_store);
         } catch (Exception $e) {
             error_log("Failed to lazy-fetch enabled cryptos: " . $e->getMessage());
             return [];
@@ -220,50 +219,18 @@ class Blockonomics
     }
 
     /**
-     * Find a matching store based on callback URL
-     *
-     * @param array $stores List of stores from Blockonomics API
-     * @param string $callback_url The callback URL to match
-     * @return object|null Returns matching store or null if not found
+     * Find a store whose http_callback exactly equals our callback URL.
+     * Strict match — secret, protocol, host, path, query all must agree.
+     * Returns matching store object or null.
      */
-    private function findMatchingStore($stores, $callback_url)
+    private function findExactMatchingStore($stores, $callback_url)
     {
-        $partial_match_result = null;
-        $empty_callback_result = null;
-
         foreach ($stores as $store) {
-            // Exact match
             if ($store->http_callback === $callback_url) {
-                return ['store' => $store, 'match_type' => 'exact'];
-            }
-            
-            // Store without callback
-            if (empty($store->http_callback)) {
-                if (!$empty_callback_result) { // Keep the first empty one found
-                    $empty_callback_result = ['store' => $store, 'match_type' => 'empty'];
-                }
-                continue;
-            }
-
-            // Partial match - only secret or protocol differs
-            $store_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $store->http_callback);
-            $target_base_url = preg_replace(['/https?:\/\//', '/\?.*$/'], '', $callback_url);
-
-            if ($store_base_url === $target_base_url) {
-                 if (!$partial_match_result) { // Keep the first partial one found
-                    $partial_match_result = ['store' => $store, 'match_type' => 'partial'];
-                }
+                return $store;
             }
         }
-
-        // Return best available match in order of preference: partial > empty > none
-        if ($partial_match_result) {
-            return $partial_match_result;
-        } elseif ($empty_callback_result) {
-            return $empty_callback_result;
-        } else {
-            return ['store' => null, 'match_type' => 'none'];
-        }
+        return null;
     }
 
     /**
@@ -1109,94 +1076,6 @@ class Blockonomics
         return $langfilepath;
     }
 
-    /*
-    * Get the wallets from the API, also checks if API key is valid
-    * @return array [
-    *   'is_valid' => bool,    // Whether the API key is valid
-    *   'error' => string,     // Error message if any
-    *   'wallets' => array     // Array of configured wallet currencies
-    * ]
-    */
-    public function get_wallets()
-    {
-        include $this->getLangFilePath();
-        $api_key = $this->getApiKey();
-        $result = [
-            'is_valid' => false,
-            'error' => '',
-            'wallets' => []
-        ];
-
-        // check if API key is empty
-        if (empty($api_key)) {
-            $result['error'] = $_BLOCKLANG['testSetup']['emptyApi'];
-            return $result;
-        }
-        //Make API call to get wallets and also consequently check if API key is valid
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, self::WALLETS_URL);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . trim($api_key),
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ]);
-
-        $response = curl_exec($ch);
-
-        // check network level errors like CORS, connection failure
-        if (curl_errno($ch)) {
-            $error = curl_error($ch);
-            $result['error'] = $_BLOCKLANG['testSetup']['blockedHttps'];
-            curl_close($ch);
-            return $result;
-        }
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($http_code === 401) {
-            $result['error'] = $_BLOCKLANG['testSetup']['incorrectApi'];
-            return $result;
-        }
-
-        if ($http_code !== 200) {
-            // For any other error, return the API response as is
-            $result['error'] = 'API Error: ' . $response;
-            return $result;
-        }
-
-        $response_data = json_decode($response);
-
-        // Check if response is valid JSON
-        if (!$response_data) {
-            return $_BLOCKLANG['testSetup']['invalidResponse'];
-        }
-
-        // API key is valid at this point
-        $result['is_valid'] = true;
-
-        // Process wallet information to get unique cryptocurrencies
-        if (!empty($response_data->data)) {
-            foreach ($response_data->data as $wallet) {
-                if (isset($wallet->crypto)) {
-                    $crypto = strtolower($wallet->crypto);
-                    if (!in_array($crypto, $result['wallets'])) {
-                        $result['wallets'][] = $crypto;
-                    }
-                }
-            }
-        }
-
-        // If no wallets configured
-        if (empty($result['wallets'])) {
-            $result['error'] = $_BLOCKLANG['testSetup']['addWallet'];
-            return $result;
-        }
-
-        return $result;
-
-    }
-
     /**
      * Run the test setup
      *
@@ -1206,30 +1085,21 @@ class Blockonomics
     {
         include $this->getLangFilePath();
 
-        // clear cached cryptos — only re-saved on successful store match
-        $this->saveBlockonomicsEnabledCryptos([]);
-
         $api_key = $this->getApiKey();
         if (empty($api_key)) {
             return ['message' => $_BLOCKLANG['testSetup']['emptyApi']];
         }
 
-        // Check configured wallets and validate API key
-        $wallet_result = $this->get_wallets();
-
-        if (!isset($wallet_result['is_valid']) || !$wallet_result['is_valid']) {
-            $error = isset($wallet_result['error']) ? $wallet_result['error'] : $_BLOCKLANG['testSetup']['incorrectApi'];
-            return ['message' => $error];
-        }
-
-        if (empty($wallet_result['wallets'])) {
-            return ['message' => $_BLOCKLANG['testSetup']['addWallet']];
-        }
-
-        // Check configured stores on blockonomics dashboard
+        // Stores API doubles as API-key validation (returns 401 on bad key)
         $stores_response = json_decode($this->getStoreSetup());
 
-        if (!isset($stores_response) || isset($stores_response->error)) {
+        if (!isset($stores_response)) {
+            return ['message' => $_BLOCKLANG['testSetup']['blockedHttps']];
+        }
+        if (isset($stores_response->error)) {
+            if (strpos($stores_response->error, 'Invalid API key') !== false) {
+                return ['message' => $_BLOCKLANG['testSetup']['incorrectApi']];
+            }
             return ['message' => $_BLOCKLANG['testSetup']['blockedHttps']];
         }
 
@@ -1240,18 +1110,9 @@ class Blockonomics
         $gatewayParams = getGatewayVariables('blockonomics');
         $callback_url = $gatewayParams['CallbackURL'];
 
-        $match_result = $this->findMatchingStore($stores_response->data, $callback_url);
-        $matching_store = $match_result['store'];
-        $match_type = $match_result['match_type'];
-
-        switch ($match_type) {
-            case 'none':
-                return ['message' => $_BLOCKLANG['testSetup']['addStore']];
-            case 'empty':
-            case 'partial':
-                return ['message' => $_BLOCKLANG['testSetup']['setCallback']];
-            case 'exact':
-                break;
+        $matching_store = $this->findExactMatchingStore($stores_response->data, $callback_url);
+        if (!$matching_store) {
+            return ['message' => $_BLOCKLANG['testSetup']['noExactMatch']];
         }
 
         // Save store name
@@ -1268,29 +1129,23 @@ class Blockonomics
             error_log("Failed to save store name: " . $e->getMessage());
         }
 
-        // Get enabled cryptos from the store
         $enabled_cryptos = $this->getStoreEnabledCryptos($matching_store);
-
         if (empty($enabled_cryptos)) {
             return ['message' => $_BLOCKLANG['testSetup']['noCrypto']];
         }
 
+        // Only overwrite cache after a validated exact-match store — failed setup leaves prior cache untouched
         $this->saveBlockonomicsEnabledCryptos($enabled_cryptos);
 
         $test_results = $this->testCryptos($enabled_cryptos);
-        $success_messages = $test_results['success_messages'];
-        $error_messages = $test_results['error_messages'];
-
-        // Show errors first, then successes (user sees the full picture)
-        $all_messages = array_merge($error_messages, $success_messages);
+        $all_messages = array_merge($test_results['error_messages'], $test_results['success_messages']);
         $message = !empty($all_messages) ? implode("<br>", $all_messages) : "No cryptocurrencies were tested";
 
-        $store_name = $matching_store->name ?? '';
         return [
             'message' => $message,
-            'store_info_html' => $this->buildStoreInfoHtml($store_name, $enabled_cryptos),
+            'store_info_html' => $this->buildStoreInfoHtml($matching_store->name ?? '', $enabled_cryptos),
         ];
-    }    
+    }
 
     public function redirect_finish_order($order_hash)
     {

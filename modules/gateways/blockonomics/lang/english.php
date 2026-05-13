@@ -74,7 +74,5 @@ $_BLOCKLANG['testSetup']['blockedHttps'] = 'Your server is blocking outgoing HTT
 $_BLOCKLANG['testSetup']['emptyApi'] = 'API Key is not set. Please enter your API Key.';
 $_BLOCKLANG['testSetup']['incorrectApi'] = 'API Key is incorrect';
 $_BLOCKLANG['testSetup']['addStore'] = 'Please add a <a href="https://www.blockonomics.co/dashboard#/store" target="_blank"><i>Store</i></a> on Blockonomics Dashboard';
-$_BLOCKLANG['testSetup']['addWallet'] = 'Please add a <a href="https://www.blockonomics.co/dashboard#/wallet" target="_blank"><i>Wallet</i></a> on Blockonomics Dashboard';
-$_BLOCKLANG['testSetup']['invalidResponse'] = 'Invalid response was received. Please retry.';
 $_BLOCKLANG['testSetup']['noCrypto'] = 'Please enable Payment method on <a href="https://www.blockonomics.co/dashboard#/store" target="_blank"><i>Stores</i></a>';
-$_BLOCKLANG['testSetup']['setCallback'] = 'Please copy Callback URL from Advanced Settings and paste it as your <a href="https://www.blockonomics.co/dashboard#/store" target="_blank">Store Callback URL</a>.';
+$_BLOCKLANG['testSetup']['noExactMatch'] = 'Please add a <a href="https://www.blockonomics.co/dashboard#/store" target="_blank">new store</a> with the callback URL shown in Advanced Settings.';
