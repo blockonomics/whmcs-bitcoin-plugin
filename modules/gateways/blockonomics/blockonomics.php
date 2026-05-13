@@ -1490,10 +1490,17 @@ class Blockonomics
             return false;
         }
 
-        $transactionExists = $this->blockonomicsTransactionExists($txhash);
-
-        if ($transactionExists) {
-            return true;
+        $existing = Capsule::table('blockonomics_orders')
+            ->where('txid', $txhash)
+            ->first();
+        if ($existing) {
+            if ($existing->id_order == $order->id_order) {
+                return true;
+            }
+            logModuleCall('blockonomics', 'process_token_order',
+                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash, 'existing_id_order' => $existing->id_order, 'this_id_order' => $order->id_order],
+                'Error: txhash already used by a different order', 'txhash mismatch');
+            return false;
         }
 
         $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
