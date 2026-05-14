@@ -920,6 +920,10 @@ class Blockonomics
             exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
         }
 
+        if ($existing_order === null) {
+            return false;
+        }
+
         return [
             'order_id' => $existing_order->id_order,
             'timestamp' => $existing_order->timestamp,
@@ -945,6 +949,10 @@ class Blockonomics
             ->first();
         } catch (Exception $e) {
             exit("Unable to select order from blockonomics_orders: {$e->getMessage()}");
+        }
+
+        if ($existing_order === null) {
+            return false;
         }
 
         return [
