@@ -167,8 +167,6 @@ class Blockonomics
     }
 
     // Get enabled cryptos from cache (populated by Test Setup)
-    // Lazy-fills cache from Blockonomics stores API on miss — keeps checkout
-    // working on fresh installs and after transient Test Setup failures
     public function getBlockonomicsEnabledCryptos()
     {
         try {
@@ -184,38 +182,7 @@ class Blockonomics
             error_log("Failed to get enabled cryptos from cache: " . $e->getMessage());
         }
 
-        $cryptos = $this->fetchEnabledCryptosFromApi();
-        if (!empty($cryptos)) {
-            $this->saveBlockonomicsEnabledCryptos($cryptos);
-        }
-        return $cryptos;
-    }
-
-    /*
-     * Fetch enabled cryptos from Blockonomics stores API for lazy cache fill
-     * Returns [] on any failure (no credentials, network error, no matching store)
-     */
-    private function fetchEnabledCryptosFromApi()
-    {
-        $gatewayParams = getGatewayVariables('blockonomics');
-        $callback_url = $gatewayParams['CallbackURL'] ?? '';
-        if (empty($this->getApiKey()) || empty($callback_url)) {
-            return [];
-        }
-        try {
-            $stores_response = json_decode($this->getStoreSetup());
-            if (!isset($stores_response->data) || !is_array($stores_response->data)) {
-                return [];
-            }
-            $matching_store = $this->findExactMatchingStore($stores_response->data, $callback_url);
-            if (!$matching_store) {
-                return [];
-            }
-            return $this->getStoreEnabledCryptos($matching_store);
-        } catch (Exception $e) {
-            error_log("Failed to lazy-fetch enabled cryptos: " . $e->getMessage());
-            return [];
-        }
+        return [];
     }
 
     /**
@@ -259,7 +226,7 @@ class Blockonomics
 
     public function getCheckoutCurrencies()
     {
-        // Get currencies enabled on Blockonomics store (from cache or API)
+        // Get currencies enabled on Blockonomics store from cache
         $blockonomics_enabled = $this->getBlockonomicsEnabledCryptos();
 
         // Result currencies
