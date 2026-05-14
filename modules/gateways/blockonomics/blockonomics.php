@@ -257,39 +257,6 @@ class Blockonomics
         return $enabled_cryptos;
     }
 
-    /**
-     * Update store callback URL on Blockonomics
-     *
-     * @param object $store Store object to update
-     * @param string $callback_url New callback URL
-     * @return bool Success status
-     */
-    private function updateStoreCallback($store, $callback_url)
-    {
-        $post_content = json_encode([
-            'name' => $store->name,
-            'http_callback' => $callback_url
-        ]);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, self::BASE_URL . '/api/v2/stores/' . $store->id);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_content);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $this->getApiKey(),
-            'Content-Type: application/json'
-        ]);
-
-        $response = curl_exec($ch);
-        $response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return $response_code === 200;
-    }
-    
-
-
     public function getCheckoutCurrencies()
     {
         // Get currencies enabled on Blockonomics store (from cache or API)
@@ -995,28 +962,6 @@ class Blockonomics
     }
 
     /*
-     * Try to get order row from db by transaction
-     */
-
-     public function blockonomicsTransactionExists($txhash)
-     {
-         $existing_order = Capsule::table('blockonomics_orders')
-             ->where('txid', $txhash)
-             ->first();
- 
-         return $existing_order !== null;
-     }
-
-    /*
-     * Get the order id using the order hash
-     */
-    public function getOrderIdByHash($order_hash)
-    {
-        $order_info = $this->decryptHash($order_hash);
-        return $order_info->id_order;
-    }
-
-    /*
      * Update existing order information. Use BTC payment address as key
      */
     public function updateOrderInDb($addr, $txid, $status, $bits_payed)
@@ -1287,15 +1232,10 @@ class Blockonomics
 
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        // Log the API call
         logModuleCall(
             'blockonomics',
             'Get Store Setup - Request',
-            [
-                'url' => self::STORES_URL,
-                'headers' => $headers,
-                'method' => 'GET'
-            ],
+            ['url' => self::STORES_URL, 'method' => 'GET'],
             null,
             null,
             [$api_key]

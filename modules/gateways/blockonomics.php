@@ -55,8 +55,6 @@ function blockonomics_config()
             $callback_url = $blockonomics->getCallbackUrl($secret);
             $trans_text_system_url_error = $_BLOCKLANG['testSetup']['systemUrl']['error'];
             $trans_text_system_url_fix = $_BLOCKLANG['testSetup']['systemUrl']['fix'];
-            $trans_text_success_btc = $_BLOCKLANG['testSetup']['success']['btc'];
-            $trans_text_success_usdt = $_BLOCKLANG['testSetup']['success']['usdt'];
             $trans_text_protocol_error = $_BLOCKLANG['testSetup']['protocol']['error'];
             $trans_text_protocol_fix = $_BLOCKLANG['testSetup']['protocol']['fix'];
             $trans_text_testing = $_BLOCKLANG['testSetup']['testing'];
@@ -166,7 +164,7 @@ function blockonomics_config()
             // Insert toggle before the first advanced row
             var firstAdvancedRow = advancedRows.find(function(r) { return r !== null; });
             var advancedSettingsRow = blockonomicsTable.insertRow(firstAdvancedRow ? firstAdvancedRow.rowIndex : blockonomicsTable.rows.length - 1);
-			var advancedSettingsLabelCell = advancedSettingsRow.insertCell(0);
+			advancedSettingsRow.insertCell(0);
 			var advancedSettingsFieldArea = advancedSettingsRow.insertCell(1);
 
             var advancedLink = document.createElement('a');
@@ -196,7 +194,7 @@ function blockonomics_config()
             saveButtonCell.style.backgroundColor = "white";
             // Insert Test Setup button row after Store Name row
             const newRow = blockonomicsTable.insertRow(storeNameRow.rowIndex + 1);
-            const labelCell = newRow.insertCell(0);
+            newRow.insertCell(0);
             const buttonCell = newRow.insertCell(1);
             buttonCell.style.backgroundColor = "white";
 
@@ -236,7 +234,6 @@ function blockonomics_config()
             }
 
             function doTest() {
-                const form = new FormData(saveButtonCell.closest('form'));
                 // Remove any existing response div
                 const existingResponse = document.getElementById('blockonomics-test-response');
                 if (existingResponse) {

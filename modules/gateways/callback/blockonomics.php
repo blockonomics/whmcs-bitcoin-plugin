@@ -43,10 +43,7 @@ if ($secret_value != $secret) {
         ['addr' => $addr, 'txid' => $txid, 'status' => $status],
         'Secret mismatch - callback rejected');
 
-    $transactionStatus = $_BLOCKLANG['error']['secret'];
-    $success = false;
-
-    echo $transactionStatus;
+    echo $_BLOCKLANG['error']['secret'];
     exit();
 }
 
@@ -77,7 +74,6 @@ if ($blockonomics_currency_code == 'btc' || $blockonomics_currency_code == 'usdt
     $subdomain = $blockonomics_currency_code;
 }
 
-$systemUrl = \App::getSystemURL();
 if ($status < $confirmations) {
     if ($blockonomics_currency_code == 'usdt') {
         $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
