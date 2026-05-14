@@ -989,6 +989,18 @@ class Blockonomics
         }
     }
 
+    // Store txhash without touching status, so a callback that arrives before monitor_tx returns can still correlate
+    public function updateOrderTxidOnly($addr, $txid)
+    {
+        try {
+            Capsule::table('blockonomics_orders')
+                ->where('addr', $addr)
+                ->update(['txid' => $txid]);
+        } catch (Exception $e) {
+            exit("Unable to update order txid in blockonomics_orders: {$e->getMessage()}");
+        }
+    }
+
     /*
      * Update existing order's expected amount and FIAT amount. Use WHMCS invoice id as key
      */
@@ -1297,22 +1309,25 @@ class Blockonomics
             ->where('txid', $txhash)
             ->first();
         if ($existing) {
-            if ($existing->id_order == $order->id_order) {
+            if ($existing->id_order != $order->id_order) {
+                logModuleCall('blockonomics', 'process_token_order',
+                    ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash, 'existing_id_order' => $existing->id_order, 'this_id_order' => $order->id_order],
+                    'Error: txhash already used by a different order', 'txhash mismatch');
+                return false;
+            }
+            // already monitored — idempotent; status -1 means a previous monitor_tx failed and we should retry
+            if ($existing->status >= 0) {
                 return true;
             }
-            logModuleCall('blockonomics', 'process_token_order',
-                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash, 'existing_id_order' => $existing->id_order, 'this_id_order' => $order->id_order],
-                'Error: txhash already used by a different order', 'txhash mismatch');
-            return false;
+        } else {
+            $this->updateOrderTxidOnly($order->addr, $txhash);
         }
 
         $blockonomics_currency = $this->getSupportedCurrencies()[$crypto];
 
-        // Get callback URL for monitoring
         $callback_secret = $this->getCallbackSecret();
         $callback_url = $this->getCallbackUrl($callback_secret);
 
-        // Prepare monitoring request
         $monitor_url = self::BASE_URL . '/api/monitor_tx';
         $post_data = array(
             'txhash' => $txhash,
@@ -1320,7 +1335,6 @@ class Blockonomics
             'match_callback' => $callback_url,
         );
 
-        // Log the monitor_tx attempt
         logModuleCall('blockonomics', 'monitor_tx_request',
             ['url' => $monitor_url, 'data' => $post_data],
             null, null, [$this->getApiKey()]);
@@ -1333,12 +1347,11 @@ class Blockonomics
 
             $response = $this->makePostRequest($monitor_url, $post_data, $headers);
 
-            // Log the monitor_tx response
             logModuleCall('blockonomics', 'monitor_tx_response',
                 ['url' => $monitor_url, 'data' => $post_data],
                 $response, null, [$this->getApiKey()]);
 
-            // Bail out without touching order/invoice if Blockonomics did not register the txhash
+            // txhash stays stored at status -1 on failure so callback can still correlate and retry remains possible
             if ($response['http_code'] !== 200) {
                 logModuleCall('blockonomics', 'monitor_tx_error',
                     ['url' => $monitor_url, 'data' => $post_data],
@@ -1347,13 +1360,18 @@ class Blockonomics
                 return false;
             }
 
-            // Update invoice note
-            $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
-            $blockonomics_currency['name'] . " transaction id:\r" .
-                '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+            // Atomic -1 -> 0 transition: a fast callback may have already moved past -1, in which case we leave it alone
+            $affected = Capsule::table('blockonomics_orders')
+                ->where('addr', $order->addr)
+                ->where('status', -1)
+                ->update(['status' => 0]);
 
-            $this->updateOrderInDb($order->addr, $txhash, 0, 0);
-            $this->updateInvoiceNote($order->id_order, $invoiceNote);
+            if ($affected > 0) {
+                $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
+                $blockonomics_currency['name'] . " transaction id:\r" .
+                    '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
+                $this->updateInvoiceNote($order->id_order, $invoiceNote);
+            }
             return true;
         } catch (Exception $e) {
             logModuleCall('blockonomics', 'process_token_order_exception',
