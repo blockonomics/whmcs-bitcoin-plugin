@@ -406,12 +406,15 @@ class Blockonomics
         $gatewayParams = getGatewayVariables('blockonomics');
         $callback_url = $gatewayParams['CallbackURL'];
 
-        $params = ['crypto' => strtoupper($blockonomics_currency)];
+        $params = [];
         if ($callback_url) {
             $params['match_callback'] = $callback_url;
         }
+        if ($blockonomics_currency === 'usdt') {
+            $params['crypto'] = 'USDT';
+        }
 
-        return $url . '?' . http_build_query($params);
+        return !empty($params) ? $url . '?' . http_build_query($params) : $url;
     }
 
     /*
