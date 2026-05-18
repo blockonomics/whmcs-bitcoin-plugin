@@ -8,6 +8,7 @@ if (!defined("WHMCS")) {
 
 use Blockonomics\Blockonomics;
 use WHMCS\ClientArea;
+use WHMCS\Database\Capsule;
 
 define('CLIENTAREA', true);
 
@@ -34,7 +35,46 @@ $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_or
 $get_order = isset($_GET['get_order']) ? htmlspecialchars($_GET['get_order']) : "";
 $txhash = isset($_GET['txhash']) ? htmlspecialchars($_GET['txhash']) : "";
 
-if($crypto === "empty"){
+function blockonomics_get_non_payable_invoice($blockonomics, $order_hash)
+{
+    if (empty($order_hash)) {
+        return null;
+    }
+
+    $order_info = $blockonomics->decryptHash($order_hash);
+    if (!is_object($order_info) || empty($order_info->id_order)) {
+        return null;
+    }
+
+    $invoice = Capsule::table('tblinvoices')
+        ->select('id', 'status')
+        ->where('id', $order_info->id_order)
+        ->first();
+
+    if (!$invoice || !in_array($invoice->status, ['Paid', 'Cancelled', 'Refunded'])) {
+        return null;
+    }
+
+    return $invoice;
+}
+
+$order_hash = $show_order ?: $select_crypto ?: $finish_order ?: $get_order;
+$non_payable_invoice = blockonomics_get_non_payable_invoice($blockonomics, $order_hash);
+
+if ($non_payable_invoice && $get_order) {
+    http_response_code(409);
+    header('Content-Type: application/json');
+    exit(json_encode(['error' => 'invoice_not_payable']));
+} else if ($non_payable_invoice && $finish_order) {
+    header('Location: ' . \App::getSystemURL() . 'viewinvoice.php?id=' . $non_payable_invoice->id);
+    exit();
+} else if ($non_payable_invoice) {
+    $blockonomics->load_blockonomics_template($ca, 'invoice_not_payable', [
+        'invoice_id' => $non_payable_invoice->id,
+        'invoice_status' => $non_payable_invoice->status,
+        'invoice_url' => \App::getSystemURL() . 'viewinvoice.php?id=' . $non_payable_invoice->id,
+    ]);
+} else if($crypto === "empty"){
     $blockonomics->load_blockonomics_template($ca, 'no_crypto_selected');
 }else if ($show_order && $crypto) {
     $blockonomics->load_checkout_template($ca, $show_order, $crypto);

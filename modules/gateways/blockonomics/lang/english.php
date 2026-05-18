@@ -28,6 +28,10 @@ $_BLOCKLANG['payAddress2'] = ' to send';
 $_BLOCKLANG['copyClipboard'] = 'Copied to clipboard';
 $_BLOCKLANG['noCrypto']['title'] = 'No crypto currencies are enabled for checkout';
 $_BLOCKLANG['noCrypto']['message'] = 'Note to webmaster: Can be enabled via Setup > Payments > Payment Gateways > Blockonomics > Currencies';
+$_BLOCKLANG['invoiceNotPayable']['title'] = 'This invoice cannot be paid';
+$_BLOCKLANG['invoiceNotPayable']['message'] = 'This invoice is no longer accepting crypto payments.';
+$_BLOCKLANG['invoiceNotPayable']['statusLabel'] = 'Current status';
+$_BLOCKLANG['invoiceNotPayable']['viewInvoice'] = 'View invoice';
 
 // Callback
 $_BLOCKLANG['error']['secret'] = 'Secret verification failure';
