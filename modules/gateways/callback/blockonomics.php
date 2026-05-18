@@ -86,6 +86,9 @@ if ($status < $confirmations) {
     }
     $blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
     $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
+    if ($status >= 0) {
+        $blockonomics->markInvoicePending($invoiceId);
+    }
 
     exit();
 }
@@ -150,6 +153,8 @@ if ($txid == 'WarningThisIsAGeneratedTestPaymentAndNotARealBitcoinTransaction') 
 if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
     exit();
 }
+
+$blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations);
 
 /**
  * Log Transaction.

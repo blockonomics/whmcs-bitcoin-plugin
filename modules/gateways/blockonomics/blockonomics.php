@@ -309,6 +309,38 @@ class Blockonomics
     }
 
     /*
+     * Mark invoice payment pending if it is still unpaid
+     */
+    public function markInvoicePending($invoiceId)
+    {
+        return Capsule::table('tblinvoices')
+            ->where('id', $invoiceId)
+            ->where('status', 'Unpaid')
+            ->update(['status' => 'Payment Pending']);
+    }
+
+    /*
+     * Release payment pending status when no crypto payment is still pending
+     */
+    public function releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations)
+    {
+        $pendingOrders = Capsule::table('blockonomics_orders')
+            ->where('id_order', $invoiceId)
+            ->where('status', '>=', 0)
+            ->where('status', '<', $confirmations)
+            ->count();
+
+        if ($pendingOrders == 0) {
+            return Capsule::table('tblinvoices')
+                ->where('id', $invoiceId)
+                ->where('status', 'Payment Pending')
+                ->update(['status' => 'Unpaid']);
+        }
+
+        return 0;
+    }
+
+    /*
      * Get underpayment slack
      */
     public function getUnderpaymentSlack()
@@ -1287,6 +1319,9 @@ class Blockonomics
             }
             // already monitored — idempotent; status -1 means a previous monitor_tx failed and we should retry
             if ($existing->status >= 0) {
+                if ($existing->status < $this->getConfirmations()) {
+                    $this->markInvoicePending($order->id_order);
+                }
                 return true;
             }
         } else {
@@ -1342,6 +1377,7 @@ class Blockonomics
                     '<a target="_blank" href="https://www.etherscan.io/tx/' . $txhash . '">' . $txhash . '</a>';
                 $this->updateInvoiceNote($order->id_order, $invoiceNote);
             }
+            $this->markInvoicePending($order->id_order);
             return true;
         } catch (Exception $e) {
             logModuleCall('blockonomics', 'process_token_order_exception',
