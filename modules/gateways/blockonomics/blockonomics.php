@@ -227,22 +227,21 @@ class Blockonomics
     public function getCheckoutCurrencies()
     {
         // Get currencies enabled on Blockonomics store from cache
-        $blockonomics_enabled = $this->getBlockonomicsEnabledCryptos();
+        $blockonomics_enabled = array_map('strtolower', $this->getBlockonomicsEnabledCryptos());
 
         // Result currencies
         $checkout_currencies = [];
         $supported_currencies = $this->getSupportedCurrencies();
 
-        // Add BCH if enabled in WHMCS settings
+        // Display checkout options in a stable, product-friendly order
         $gatewayParams = getGatewayVariables('blockonomics');
         $bchEnabled = $gatewayParams['bchEnabled'];
-        if ($bchEnabled && isset($supported_currencies['bch'])) {
-            $checkout_currencies['bch'] = $supported_currencies['bch'];
-        }
-
-        // Add other currencies from Blockonomics cache
-        foreach ($blockonomics_enabled as $code) {
-            if ($code != 'bch' && isset($supported_currencies[$code])) {
+        foreach (['btc', 'usdt', 'bch'] as $code) {
+            if ($code === 'bch') {
+                if ($bchEnabled && isset($supported_currencies[$code])) {
+                    $checkout_currencies[$code] = $supported_currencies[$code];
+                }
+            } elseif (in_array($code, $blockonomics_enabled) && isset($supported_currencies[$code])) {
                 $checkout_currencies[$code] = $supported_currencies[$code];
             }
         }
