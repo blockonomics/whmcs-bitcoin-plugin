@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '2.1-rc1';
+    private $version = '2.1';
 
     const BASE_URL = 'https://www.blockonomics.co';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
