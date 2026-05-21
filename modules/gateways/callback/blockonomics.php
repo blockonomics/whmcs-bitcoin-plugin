@@ -39,10 +39,11 @@ $txid = htmlspecialchars($_GET['txid']);
 $secret_value = $blockonomics->getCallbackSecret();
 
 if ($secret_value != $secret) {
-    $transactionStatus = $_BLOCKLANG['error']['secret'];
-    $success = false;
+    logModuleCall('blockonomics', 'callback_secret_mismatch',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status],
+        'Secret mismatch - callback rejected');
 
-    echo $transactionStatus;
+    echo $_BLOCKLANG['error']['secret'];
     exit();
 }
 
@@ -50,6 +51,14 @@ $order = $blockonomics->getOrderByAddress($addr);
 if (!$order || !$order['order_id']) {
     $order = $blockonomics->getOrderBytxn($txid);
 }
+
+if (!$order || !$order['order_id']) {
+    logModuleCall('blockonomics', 'callback_no_matching_order',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value],
+        'No order found for callback');
+    exit();
+}
+
 $invoiceId = $order['order_id'];
 $bits = $order['bits'];
 
@@ -65,19 +74,21 @@ if ($blockonomics_currency_code == 'btc' || $blockonomics_currency_code == 'usdt
     $subdomain = $blockonomics_currency_code;
 }
 
-$systemUrl = \App::getSystemURL();
 if ($status < $confirmations) {
     if ($blockonomics_currency_code == 'usdt') {
         $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
-        $blockonomics_currency->name . " transaction id:\r" .
+        $blockonomics_currency['name'] . " transaction id:\r" .
             '<a target="_blank" href="https://www.etherscan.io/tx/' . $txid . '">' . $txid . '</a>';
     } else {
         $invoiceNote = '<b>' . $_BLOCKLANG['invoiceNote']['waiting'] . "</b>\r\r" .
-        $blockonomics_currency->name . " transaction id:\r" .
+        $blockonomics_currency['name'] . " transaction id:\r" .
             '<a target="_blank" href="https://' . $subdomain . ".blockonomics.co/api/tx?txid=$txid&addr=$addr\">$txid</a>";
     }
     $blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
     $blockonomics->updateInvoiceNote($invoiceId, $invoiceNote);
+    if ($status >= 0) {
+        $blockonomics->markInvoicePending($invoiceId);
+    }
 
     exit();
 }
@@ -142,6 +153,8 @@ if ($txid == 'WarningThisIsAGeneratedTestPaymentAndNotARealBitcoinTransaction') 
 if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
     exit();
 }
+
+$blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations);
 
 /**
  * Log Transaction.
