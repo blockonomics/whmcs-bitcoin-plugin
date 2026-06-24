@@ -168,7 +168,9 @@ $blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirm
  * @param string|array $debugData    Data to log
  * @param string $transactionStatus  Status
  */
-logTransaction($gatewayParams['name'], $_GET, 'Successful');
+$debugData = $_GET;
+$debugData['invoice_id'] = $invoiceId;
+logTransaction($gatewayParams['name'], $debugData, 'Successful');
 
 $paymentFee = 0;
 
