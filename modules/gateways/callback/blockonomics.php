@@ -39,7 +39,7 @@ $rbf = !empty($_GET['rbf']);
  */
 $secret_value = $blockonomics->getCallbackSecret();
 
-if ($secret_value != $secret) {
+if (empty($secret_value) || !hash_equals($secret_value, $secret)) {
     logModuleCall('blockonomics', 'callback_secret_mismatch',
         ['addr' => $addr, 'txid' => $txid, 'status' => $status],
         'Secret mismatch - callback rejected');
@@ -97,11 +97,14 @@ if ($status < $confirmations) {
     if ($status >= 0) {
         $blockonomics->markInvoicePending($invoiceId);
     }
+    logModuleCall('blockonomics', 'callback_payment_update',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value, 'order_id' => $invoiceId],
+        'Order updated - awaiting confirmations');
 
     exit();
 }
 
-$underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $bits;
+$underpayment_slack = ceil($blockonomics->getUnderpaymentSlack() / 100 * $bits);
 if ($value < $bits - $underpayment_slack || $value > $bits) {
     $satoshiAmount = $value;
 } else {
@@ -176,7 +179,7 @@ $blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirm
  * @param string|array $debugData    Data to log
  * @param string $transactionStatus  Status
  */
-logTransaction($gatewayParams['name'], $_GET, 'Successful');
+logTransaction($gatewayParams['name'], array_merge($_GET, ['secret' => '***']), 'Successful');
 
 $paymentFee = 0;
 
