@@ -32,6 +32,7 @@ $status = htmlspecialchars($_GET['status']);
 $addr = htmlspecialchars($_GET['addr']);
 $value = htmlspecialchars($_GET['value']);
 $txid = htmlspecialchars($_GET['txid']);
+$rbf = !empty($_GET['rbf']);
 
 /**
  * Validate callback authenticity.
@@ -56,6 +57,13 @@ if (!$order || !$order['order_id']) {
     logModuleCall('blockonomics', 'callback_no_matching_order',
         ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value],
         'No order found for callback');
+    exit();
+}
+
+if ($rbf && $status < 2) {
+    logModuleCall('blockonomics', 'callback_rbf_unconfirmed',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value, 'rbf' => $rbf],
+        'RBF callback ignored below confirmed status');
     exit();
 }
 
