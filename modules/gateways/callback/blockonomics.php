@@ -112,7 +112,9 @@ if ($status < $confirmations) {
 }
 
 $underpayment_slack = ceil($blockonomics->getUnderpaymentSlack() / 100 * $bits);
-if ($value < $bits - $underpayment_slack || $value > $bits) {
+if ($value > $bits && $blockonomics_currency_code == 'usdt') {
+    $satoshiAmount = $bits;
+} elseif ($value < $bits - $underpayment_slack || $value > $bits) {
     $satoshiAmount = $value;
 } else {
     $satoshiAmount = $bits;
