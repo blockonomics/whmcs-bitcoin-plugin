@@ -671,8 +671,8 @@ class Blockonomics
                         $table->string('addr');
                         $table->integer('status');
                         $table->decimal('value', 10, 2);
-                        $table->integer('bits');
-                        $table->integer('bits_payed');
+                        $table->bigInteger('bits');
+                        $table->bigInteger('bits_payed');
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
@@ -682,7 +682,10 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to create blockonomics_orders: {$e->getMessage()}");
             }
-        } else if (!Capsule::schema()->hasColumn('blockonomics_orders', 'basecurrencyamount')) {
+            return;
+        }
+
+        if (!Capsule::schema()->hasColumn('blockonomics_orders', 'basecurrencyamount')) {
             try {
                 // basecurrencyamount fixes payment amounts when convertToForProcessing is activated
                 // https://github.com/blockonomics/whmcs-bitcoin-plugin/pull/103
@@ -692,6 +695,21 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to update blockonomics_orders: {$e->getMessage()}");
             }
+        }
+
+        $this->migrateBitsColumnsToBigint();
+    }
+
+    private function migrateBitsColumnsToBigint()
+    {
+        try {
+            $column = Capsule::selectOne("SHOW COLUMNS FROM blockonomics_orders LIKE 'bits'");
+            if (!$column || stripos($column->Type, 'bigint') === 0) {
+                return;
+            }
+            Capsule::statement('ALTER TABLE blockonomics_orders MODIFY bits BIGINT NOT NULL, MODIFY bits_payed BIGINT NOT NULL');
+        } catch (Exception $e) {
+            logActivity('Blockonomics: could not change bits/bits_payed to BIGINT: ' . $e->getMessage());
         }
     }
 
