@@ -14,6 +14,7 @@ define('CLIENTAREA', true);
 
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
+$blockonomics->createOrderTableIfNotExist();
 require $blockonomics->getLangFilePath(isset($_GET['language']) ? htmlspecialchars($_GET['language']) : '');
 
 $ca = new ClientArea();
