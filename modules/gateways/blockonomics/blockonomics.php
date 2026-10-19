@@ -377,6 +377,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -460,6 +462,8 @@ class Blockonomics
         $address_ch = curl_init();
         curl_setopt($address_ch, CURLOPT_URL, $address_url);
         curl_setopt($address_ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($address_ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($address_ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($address_ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($address_ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $this->getApiKey()
@@ -468,6 +472,8 @@ class Blockonomics
         $price_ch = curl_init();
         curl_setopt($price_ch, CURLOPT_URL, $price_url);
         curl_setopt($price_ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($price_ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($price_ch, CURLOPT_CONNECTTIMEOUT, 8);
 
         $mh = curl_multi_init();
         curl_multi_add_handle($mh, $address_ch);
@@ -554,6 +560,8 @@ class Blockonomics
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $this->buildNewAddressUrl($code));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Bearer ' . $this->getApiKey()
@@ -671,8 +679,8 @@ class Blockonomics
                         $table->string('addr');
                         $table->integer('status');
                         $table->decimal('value', 10, 2);
-                        $table->integer('bits');
-                        $table->integer('bits_payed');
+                        $table->bigInteger('bits');
+                        $table->bigInteger('bits_payed');
                         $table->string('blockonomics_currency');
                         $table->primary('addr');
                         $table->decimal('basecurrencyamount', 10, 2);
@@ -682,7 +690,10 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to create blockonomics_orders: {$e->getMessage()}");
             }
-        } else if (!Capsule::schema()->hasColumn('blockonomics_orders', 'basecurrencyamount')) {
+            return;
+        }
+
+        if (!Capsule::schema()->hasColumn('blockonomics_orders', 'basecurrencyamount')) {
             try {
                 // basecurrencyamount fixes payment amounts when convertToForProcessing is activated
                 // https://github.com/blockonomics/whmcs-bitcoin-plugin/pull/103
@@ -692,6 +703,21 @@ class Blockonomics
             } catch (Exception $e) {
                 exit("Unable to update blockonomics_orders: {$e->getMessage()}");
             }
+        }
+
+        $this->migrateBitsColumnsToBigint();
+    }
+
+    private function migrateBitsColumnsToBigint()
+    {
+        try {
+            $column = Capsule::selectOne("SHOW COLUMNS FROM blockonomics_orders LIKE 'bits'");
+            if (!$column || stripos($column->Type, 'bigint') === 0) {
+                return;
+            }
+            Capsule::statement('ALTER TABLE blockonomics_orders MODIFY bits BIGINT NOT NULL, MODIFY bits_payed BIGINT NOT NULL');
+        } catch (Exception $e) {
+            logActivity('Blockonomics: could not change bits/bits_payed to BIGINT: ' . $e->getMessage());
         }
     }
 
@@ -1242,6 +1268,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::STORES_URL);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
@@ -1393,6 +1421,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         
