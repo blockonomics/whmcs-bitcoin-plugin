@@ -22,17 +22,6 @@ function blockonomics_config()
         logActivity("Blockonomics: could not remove legacy CheckoutMode setting: " . $e->getMessage());
     }
 
-    // Clean up legacy convertto setting (removed in v2.0, was multi-currency conversion)
-    // TODO: safe to remove from v2.3+
-    try {
-        Capsule::table('tblpaymentgateways')
-            ->where('gateway', 'blockonomics')
-            ->where('setting', 'convertto')
-            ->delete();
-    } catch (Exception $e) {
-        logActivity("Blockonomics: could not remove legacy convertto setting: " . $e->getMessage());
-    }
-
     // When loading plugin setup page, run custom JS
     add_hook(
         'AdminAreaFooterOutput',

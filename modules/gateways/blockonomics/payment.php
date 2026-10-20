@@ -14,6 +14,7 @@ define('CLIENTAREA', true);
 
 // Init Blockonomics class
 $blockonomics = new Blockonomics();
+$blockonomics->createOrderTableIfNotExist();
 require $blockonomics->getLangFilePath(isset($_GET['language']) ? htmlspecialchars($_GET['language']) : '');
 
 $ca = new ClientArea();
@@ -34,6 +35,7 @@ $select_crypto = isset($_GET["select_crypto"]) ? htmlspecialchars($_GET['select_
 $finish_order = isset($_GET["finish_order"]) ? htmlspecialchars($_GET['finish_order']) : "";
 $get_order = isset($_GET['get_order']) ? htmlspecialchars($_GET['get_order']) : "";
 $txhash = isset($_GET['txhash']) ? htmlspecialchars($_GET['txhash']) : "";
+$txn_submitted = isset($_GET['txn_submitted']) ? htmlspecialchars($_GET['txn_submitted']) : "";
 
 function blockonomics_get_non_payable_invoice($blockonomics, $order_hash)
 {
@@ -58,6 +60,11 @@ function blockonomics_get_non_payable_invoice($blockonomics, $order_hash)
     return $invoice;
 }
 
+if ($txn_submitted) {
+    $blockonomics->recordTxnSubmitted($txn_submitted, $crypto, $txhash);
+    exit();
+}
+
 $order_hash = $show_order ?: $select_crypto ?: $finish_order ?: $get_order;
 $non_payable_invoice = blockonomics_get_non_payable_invoice($blockonomics, $order_hash);
 
@@ -66,6 +73,7 @@ if ($non_payable_invoice && $get_order) {
     header('Content-Type: application/json');
     exit(json_encode(['error' => 'invoice_not_payable']));
 } else if ($non_payable_invoice && $finish_order) {
+    logTransaction('Blockonomics', ['invoice_id' => $non_payable_invoice->id, 'invoice_status' => $non_payable_invoice->status, 'crypto' => $crypto, 'txhash' => $txhash], 'Ignored: finish_order for a non-payable invoice');
     header('Location: ' . \App::getSystemURL() . 'viewinvoice.php?id=' . $non_payable_invoice->id);
     exit();
 } else if ($non_payable_invoice) {
