@@ -1300,6 +1300,20 @@ class Blockonomics
         return $response;
     }
 
+    public function recordTxnSubmitted($order_hash, $crypto, $txhash)
+    {
+        $order_info = $this->decryptHash($order_hash);
+        $invoice_id = is_object($order_info) ? $order_info->id_order : null;
+        logTransaction('Blockonomics', ['invoice_id' => $invoice_id, 'crypto' => $crypto, 'txhash' => $txhash], 'Txhash received from browser');
+        if ($invoice_id && $txhash) {
+            Capsule::table('blockonomics_orders')
+                ->where('id_order', $invoice_id)
+                ->where('blockonomics_currency', $crypto)
+                ->where('txid', '')
+                ->update(['txid' => $txhash]);
+        }
+    }
+
     /*
      * Submit USDT txhash to Blockonomics monitor_tx, mark order waiting, write invoice note
      * Returns true on success (or idempotent re-submission), false on any failure
@@ -1309,18 +1323,14 @@ class Blockonomics
 
         // Validate txhash is provided
         if (empty($txhash)) {
-            logModuleCall('blockonomics', 'process_token_order',
-                ['finish_order' => $finish_order, 'crypto' => $crypto],
-                'Error: txhash is empty', 'txhash parameter missing');
+            logTransaction('Blockonomics', ['finish_order' => $finish_order, 'crypto' => $crypto], 'Failed: txhash missing');
             return false;
         }
 
         $order = $this->processOrderHash($finish_order, $crypto);
 
         if (empty($order)) {
-            logModuleCall('blockonomics', 'process_token_order',
-                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
-                'Error: order is empty', 'Could not process order hash');
+            logTransaction('Blockonomics', ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash], 'Failed: order not found for hash');
             return false;
         }
 
@@ -1329,9 +1339,7 @@ class Blockonomics
             ->first();
         if ($existing) {
             if ($existing->id_order != $order->id_order) {
-                logModuleCall('blockonomics', 'process_token_order',
-                    ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash, 'existing_id_order' => $existing->id_order, 'this_id_order' => $order->id_order],
-                    'Error: txhash already used by a different order', 'txhash mismatch');
+                logTransaction('Blockonomics', ['invoice_id' => $order->id_order, 'crypto' => $crypto, 'txhash' => $txhash, 'used_by_invoice' => $existing->id_order], 'Failed: txhash already used by another invoice');
                 return false;
             }
             // already monitored — idempotent; status -1 means a previous monitor_tx failed and we should retry
@@ -1375,10 +1383,7 @@ class Blockonomics
 
             // txhash stays stored at status -1 on failure so callback can still correlate and retry remains possible
             if ($response['http_code'] !== 200) {
-                logModuleCall('blockonomics', 'monitor_tx_error',
-                    ['url' => $monitor_url, 'data' => $post_data],
-                    'HTTP ' . $response['http_code'] . ': ' . $response['response'],
-                    'monitor_tx API call failed', [$this->getApiKey()]);
+                logTransaction('Blockonomics', ['invoice_id' => $order->id_order, 'crypto' => $crypto, 'txhash' => $txhash, 'http_code' => $response['http_code'], 'response' => $response['response']], 'Failed: monitor_tx rejected');
                 return false;
             }
 
@@ -1397,9 +1402,7 @@ class Blockonomics
             $this->markInvoicePending($order->id_order);
             return true;
         } catch (Exception $e) {
-            logModuleCall('blockonomics', 'process_token_order_exception',
-                ['finish_order' => $finish_order, 'crypto' => $crypto, 'txhash' => $txhash],
-                $e->getMessage(), 'Exception occurred');
+            logTransaction('Blockonomics', ['invoice_id' => $order->id_order, 'crypto' => $crypto, 'txhash' => $txhash, 'error' => $e->getMessage()], 'Failed: monitor_tx exception');
             return false;
         }
     }

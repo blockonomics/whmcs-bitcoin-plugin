@@ -41,6 +41,14 @@
                     redirect_url="{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?finish_order={$order_hash}&crypto=usdt"
                     {if $testmode}testmode=1{/if}
                 ></web3-payment>
+                <script>
+                var bnomics_txn_submitted_url = '{$WEB_ROOT}/modules/gateways/blockonomics/payment.php?txn_submitted={$order_hash}&crypto=usdt&txhash=';
+                {literal}
+                document.querySelector('web3-payment').onTxnSubmitted = function (result) {
+                    fetch(bnomics_txn_submitted_url + encodeURIComponent(result.txhash), { keepalive: true }).catch(function () {});
+                };
+                {/literal}
+                </script>
             {else}
                 <table>
                     <tr>
