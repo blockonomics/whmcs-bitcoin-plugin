@@ -13,8 +13,6 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '2.1.1';
-
     const BASE_URL = 'https://www.blockonomics.co';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
@@ -31,7 +29,8 @@ class Blockonomics
      */
     public function getVersion()
     {
-        return $this->version;
+        $manifest = json_decode(file_get_contents(__DIR__ . '/whmcs.json'), true);
+        return $manifest['version'] ?? '';
     }
 
     /*
