@@ -13,8 +13,6 @@ require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 
 class Blockonomics
 {
-    private $version = '2.1.1';
-
     const BASE_URL = 'https://www.blockonomics.co';
     const BCH_BASE_URL = 'https://bch.blockonomics.co';
 
@@ -31,7 +29,8 @@ class Blockonomics
      */
     public function getVersion()
     {
-        return $this->version;
+        $manifest = json_decode(file_get_contents(__DIR__ . '/whmcs.json'), true);
+        return $manifest['version'] ?? '';
     }
 
     /*
@@ -377,6 +376,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -460,6 +461,8 @@ class Blockonomics
         $address_ch = curl_init();
         curl_setopt($address_ch, CURLOPT_URL, $address_url);
         curl_setopt($address_ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($address_ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($address_ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($address_ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($address_ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $this->getApiKey()
@@ -468,6 +471,8 @@ class Blockonomics
         $price_ch = curl_init();
         curl_setopt($price_ch, CURLOPT_URL, $price_url);
         curl_setopt($price_ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($price_ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($price_ch, CURLOPT_CONNECTTIMEOUT, 8);
 
         $mh = curl_multi_init();
         curl_multi_add_handle($mh, $address_ch);
@@ -554,6 +559,8 @@ class Blockonomics
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $this->buildNewAddressUrl($code));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Bearer ' . $this->getApiKey()
@@ -1260,6 +1267,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, self::STORES_URL);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
@@ -1414,6 +1423,8 @@ class Blockonomics
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         

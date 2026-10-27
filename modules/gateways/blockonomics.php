@@ -59,6 +59,9 @@ function blockonomics_config()
             }
             $enabledCryptos = $blockonomics->getBlockonomicsEnabledCryptos();
             $initial_store_info = $blockonomics->buildStoreInfoHtml($currentStoreName, $enabledCryptos);
+            if ($initial_store_info === '') {
+                $initial_store_info = '<span style="color:grey;">' . $_BLOCKLANG['storeName']['placeholder'] . '</span>';
+            }
 
             return <<<HTML
 		<script type="text/javascript">
@@ -104,9 +107,6 @@ function blockonomics_config()
 				element.step = 0.01;
 			});
 
-			/**
-			 * Generate Settings and Currency Headers
-			 */
             const blockonomicsTable = document.getElementById("Payment-Gateway-Config-blockonomics");
 
             // Helper: find a config row by its field name instead of hardcoded index
@@ -116,20 +116,9 @@ function blockonomics_config()
                 return input.closest('tr');
             }
 
-            const headerStyles = 'text-decoration: underline; margin-bottom: 2px';
-            // Add Settings Row (after API Key row)
-            const apiKeyRow = getFieldRow('ApiKey');
-            const settingsRow = blockonomicsTable.insertRow(apiKeyRow ? apiKeyRow.rowIndex + 1 : 3);
-            settingsRow.insertCell(0);
-            const settingsFieldArea = settingsRow.insertCell(1);
-
-            const settingsHeader = document.createElement('h4');
-            settingsHeader.style.cssText = headerStyles
-            settingsHeader.textContent = 'Settings';
-            settingsFieldArea.appendChild(settingsHeader);
-
             // Store Name row (created via JS so WHMCS doesn't clear it on form save)
-            const storeNameRow = blockonomicsTable.insertRow(settingsRow.rowIndex + 1);
+            const apiKeyRow = getFieldRow('ApiKey');
+            const storeNameRow = blockonomicsTable.insertRow(apiKeyRow ? apiKeyRow.rowIndex + 1 : 3);
             const storeNameLabel = storeNameRow.insertCell(0);
             storeNameLabel.className = 'fieldlabel';
             storeNameLabel.textContent = '$trans_text_store_name';

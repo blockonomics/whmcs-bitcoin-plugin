@@ -2,6 +2,7 @@
     "schema": "1.0",
     "type": "whmcs-gateways",
     "name": "blockonomics",
+    "version": "2.2",
     "license": "MIT",
     "category": "payments",
     "description": {

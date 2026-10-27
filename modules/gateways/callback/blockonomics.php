@@ -32,13 +32,14 @@ $status = htmlspecialchars($_GET['status']);
 $addr = htmlspecialchars($_GET['addr']);
 $value = htmlspecialchars($_GET['value']);
 $txid = htmlspecialchars($_GET['txid']);
+$rbf = !empty($_GET['rbf']);
 
 /**
  * Validate callback authenticity.
  */
 $secret_value = $blockonomics->getCallbackSecret();
 
-if ($secret_value != $secret) {
+if (empty($secret_value) || !hash_equals($secret_value, $secret)) {
     logModuleCall('blockonomics', 'callback_secret_mismatch',
         ['addr' => $addr, 'txid' => $txid, 'status' => $status],
         'Secret mismatch - callback rejected');
@@ -56,6 +57,20 @@ if (!$order || !$order['order_id']) {
     logModuleCall('blockonomics', 'callback_no_matching_order',
         ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value],
         'No order found for callback');
+    exit();
+}
+
+if ($rbf && $status < 2) {
+    logModuleCall('blockonomics', 'callback_rbf_unconfirmed',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value, 'rbf' => $rbf],
+        'RBF callback ignored below confirmed status');
+    exit();
+}
+
+if ($order['status'] == 2) {
+    logModuleCall('blockonomics', 'callback_order_already_confirmed',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value, 'order_id' => $order['order_id'], 'order_status' => $order['status']],
+        'Order already confirmed, callback ignored');
     exit();
 }
 
@@ -89,11 +104,14 @@ if ($status < $confirmations) {
     if ($status >= 0) {
         $blockonomics->markInvoicePending($invoiceId);
     }
+    logModuleCall('blockonomics', 'callback_payment_update',
+        ['addr' => $addr, 'txid' => $txid, 'status' => $status, 'value' => $value, 'order_id' => $invoiceId],
+        'Order updated - awaiting confirmations');
 
     exit();
 }
 
-$underpayment_slack = $blockonomics->getUnderpaymentSlack() / 100 * $bits;
+$underpayment_slack = ceil($blockonomics->getUnderpaymentSlack() / 100 * $bits);
 if ($value > $bits && $blockonomics_currency_code == 'usdt') {
     $satoshiAmount = $bits;
 } elseif ($value < $bits - $underpayment_slack || $value > $bits) {
@@ -102,9 +120,7 @@ if ($value > $bits && $blockonomics_currency_code == 'usdt') {
     $satoshiAmount = $bits;
 }
 $percentPaid = $satoshiAmount / $bits * 100;
-$paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);  
-$blockonomics->updateInvoiceNote($invoiceId, null);
-$blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
+$paymentAmount = $blockonomics->convertPercentPaidToInvoiceCurrency($order, $percentPaid);
 
 /**
  * Validate Callback Invoice ID.
@@ -121,6 +137,7 @@ $blockonomics->updateOrderInDb($order['addr'], $txid, $status, $value);
  */
 $invoiceId = checkCbInvoiceID($invoiceId, $gatewayParams['name']);
 
+$callback_txid = $txid;
 
 if ($txid == 'WarningThisIsAGeneratedTestPaymentAndNotARealBitcoinTransaction') {
     // If this is test transaction, generate new transaction ID
@@ -153,10 +170,11 @@ if ($txid == 'WarningThisIsAGeneratedTestPaymentAndNotARealBitcoinTransaction') 
  */
 
 if ($blockonomics->checkIfTransactionExists($blockonomics_currency_code . ' - ' . $txid)) {
+    $blockonomics->updateOrderInDb($order['addr'], $callback_txid, 2, $value);
+    $blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations);
+    $blockonomics->updateInvoiceNote($invoiceId, null);
     exit();
 }
-
-$blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations);
 
 /**
  * Log Transaction.
@@ -170,7 +188,7 @@ $blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirm
  * @param string|array $debugData    Data to log
  * @param string $transactionStatus  Status
  */
-logTransaction($gatewayParams['name'], $_GET, 'Successful');
+logTransaction($gatewayParams['name'], array_merge($_GET, ['secret' => '***']), 'Successful');
 
 $paymentFee = 0;
 
@@ -192,3 +210,7 @@ addInvoicePayment(
     $paymentFee,
     $gatewayModuleName
 );
+
+$blockonomics->updateOrderInDb($order['addr'], $callback_txid, 2, $value);
+$blockonomics->releaseInvoicePendingIfNoPendingCryptoOrders($invoiceId, $confirmations);
+$blockonomics->updateInvoiceNote($invoiceId, null);
