@@ -41,6 +41,7 @@ $_BLOCKLANG['invoiceNote']['waiting'] = 'Invoice will be automatically marked as
 // Admin Menu
 $_BLOCKLANG['storeName']['title'] = 'Store Name';
 $_BLOCKLANG['storeName']['description'] = 'Your Blockonomics store name';
+$_BLOCKLANG['storeName']['placeholder'] = 'Shown after a successful Test Setup';
 $_BLOCKLANG['version']['title'] = 'Version';
 $_BLOCKLANG['apiKey']['title'] = 'API Key';
 $_BLOCKLANG['apiKey']['description'] = 'Get your API Key from <a target="_blank" href="https://www.blockonomics.co/dashboard#/store">Blockonomics Dashboard</a>';

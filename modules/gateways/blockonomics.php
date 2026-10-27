@@ -59,6 +59,9 @@ function blockonomics_config()
             }
             $enabledCryptos = $blockonomics->getBlockonomicsEnabledCryptos();
             $initial_store_info = $blockonomics->buildStoreInfoHtml($currentStoreName, $enabledCryptos);
+            if ($initial_store_info === '') {
+                $initial_store_info = '<span style="color:grey;">' . $_BLOCKLANG['storeName']['placeholder'] . '</span>';
+            }
 
             return <<<HTML
 		<script type="text/javascript">
